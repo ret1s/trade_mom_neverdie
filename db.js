@@ -89,11 +89,23 @@ function createUserWithDisplayName(username, password, displayName) {
 function getAllUsers() {
   return db.prepare(`
     SELECT u.id, u.username, u.display_name, u.balance, u.role, u.created_at,
-      COALESCE((SELECT SUM(remaining_quantity * cost_price) FROM holdings_lots h WHERE h.user_id = u.id AND h.remaining_quantity > 0), 0) as holdings_value,
+      COALESCE((
+        SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
+        FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+        WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
+      ), 0) as holdings_value,
+      COALESCE((
+        SELECT SUM(hl.remaining_quantity * hl.cost_price)
+        FROM holdings_lots hl WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
+      ), 0) as holdings_cost,
       COALESCE((SELECT SUM(total_value + fee) FROM orders o WHERE o.user_id = u.id AND o.order_type = 'buy' AND o.status = 'pending'), 0) as pending_buy_cost
     FROM users u
     WHERE u.role != 'admin'
-    ORDER BY (u.balance + COALESCE((SELECT SUM(remaining_quantity * cost_price) FROM holdings_lots h WHERE h.user_id = u.id AND h.remaining_quantity > 0), 0)) DESC
+    ORDER BY (u.balance + COALESCE((
+      SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
+      FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+      WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
+    ), 0)) DESC
   `).all();
 }
 

@@ -28,8 +28,8 @@
         <% const STARTING = 1000000000; %>
         <% users.forEach((u, i) => { %>
         <%
-          const totalAssets = u.balance + u.holdings_value;
-          const pnl = totalAssets + u.pending_buy_cost - STARTING;
+          const totalAssets = u.balance + u.holdings_value; // holdings_value already uses market price
+          const pnl = totalAssets - STARTING;
           const pnlPct = (pnl / STARTING * 100).toFixed(2);
         %>
         <tr class="<%= i === 0 ? 'row-top' : '' %>">
@@ -50,7 +50,7 @@
           </td>
           <td class="num">₫<%= formatVND(u.balance) %></td>
           <td class="num">₫<%= formatVND(u.holdings_value) %></td>
-          <td class="num"><strong>₫<%= formatVND(totalAssets + u.pending_buy_cost) %></strong></td>
+          <td class="num"><strong>₫<%= formatVND(totalAssets) %></strong></td>
           <td class="num">
             <span class="<%= pnl >= 0 ? 'text-buy' : 'text-sell' %>">
               <%= pnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnl)) %>
