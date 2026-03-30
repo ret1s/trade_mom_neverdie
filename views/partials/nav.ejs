@@ -1,0 +1,16 @@
+<nav>
+  <a href="/" class="nav-brand">TRADE MÕM<span class="nav-brand-sub">NEVERDIE</span></a>
+  <% if (user) { %>
+  <div class="nav-links">
+    <% if (user.role === 'admin') { %>
+      <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>">ADMIN</a>
+    <% } else { %>
+      <a href="/dashboard" class="<%= currentPath === '/dashboard' ? 'active' : '' %>">DANH MỤC</a>
+      <a href="/orders/new" class="<%= currentPath === '/orders/new' ? 'active' : '' %>">ĐẶT LỆNH</a>
+      <a href="/orders" class="<%= currentPath === '/orders' ? 'active' : '' %>">LỆNH CỦA TÔI</a>
+      <a href="/leaderboard" class="<%= currentPath === '/leaderboard' ? 'active' : '' %>">BXH</a>
+    <% } %>
+    <a href="/logout" class="nav-logout">↩ <%= user.username %></a>
+  </div>
+  <% } %>
+</nav>

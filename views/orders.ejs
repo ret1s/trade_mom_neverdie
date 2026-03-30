@@ -1,0 +1,66 @@
+<%- include('partials/head', { title: 'Lệnh của tôi' }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">LỆNH CỦA TÔI</h1>
+    <a href="/orders/new" class="btn btn-primary">+ ĐẶT LỆNH MỚI</a>
+  </div>
+
+  <div class="card">
+    <% if (orders.length === 0) { %>
+      <div class="empty-state">Chưa có lệnh nào. <a href="/orders/new">Đặt lệnh đầu tiên</a></div>
+    <% } else { %>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>LOẠI</th>
+          <th>MÃ</th>
+          <th class="num">SL</th>
+          <th class="num">GIÁ</th>
+          <th class="num">GIÁ TRỊ</th>
+          <th class="num">PHÍ</th>
+          <th class="num">THỰC TẾ</th>
+          <th>TRẠNG THÁI</th>
+          <th>T+2</th>
+          <th>THỜI GIAN</th>
+          <th>GHI CHÚ ADMIN</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% orders.forEach(o => { %>
+        <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
+          <td class="dim">#<%= o.id %></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
+          <td><span class="ticker"><%= o.ticker %></span></td>
+          <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
+          <td class="num">₫<%= formatVND(o.price) %></td>
+          <td class="num">₫<%= formatVND(o.total_value) %></td>
+          <td class="num dim">₫<%= formatVND(o.fee) %></td>
+          <td class="num">
+            <% if (o.order_type === 'buy') { %>
+              <span class="text-sell">₫<%= formatVND(o.total_value + o.fee) %></span>
+            <% } else { %>
+              <span class="text-buy">₫<%= formatVND(o.total_value - o.fee) %></span>
+            <% } %>
+          </td>
+          <td>
+            <span class="badge badge-<%= o.status %>">
+              <%= o.status === 'pending' ? '⏳ CHỜ DUYỆT' : o.status === 'approved' ? '✓ ĐÃ DUYỆT' : '✗ TỪ CHỐI' %>
+            </span>
+          </td>
+          <td class="dim small"><%= o.settlement_date || '—' %></td>
+          <td class="dim small"><%= formatDate(o.created_at) %></td>
+          <td class="dim small"><%= o.admin_note || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,163 @@
+<%- include('partials/head', { title: 'Admin Panel' }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">ADMIN PANEL</h1>
+    <span class="dim">Quản lý lệnh giao dịch</span>
+  </div>
+
+  <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
+  <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
+
+  <!-- Pending Orders -->
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title">LỆNH CHỜ DUYỆT</div>
+      <span class="badge <%= pendingOrders.length > 0 ? 'badge-pending' : 'badge-approved' %>">
+        <%= pendingOrders.length %> lệnh
+      </span>
+    </div>
+
+    <% if (pendingOrders.length === 0) { %>
+      <div class="empty-state">Không có lệnh nào đang chờ duyệt ✓</div>
+    <% } else { %>
+    <div class="pending-list">
+      <% pendingOrders.forEach(o => { %>
+      <div class="pending-card">
+        <div class="pending-header">
+          <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+            <span class="dim small">#<%= o.id %></span>
+            <span class="badge-type badge-<%= o.order_type %> big"><%= o.order_type === 'buy' ? '▲ MUA' : '▼ BÁN' %></span>
+            <span class="ticker big"><%= o.ticker %></span>
+            <span class="bold">@</span>
+            <span>₫<%= formatVND(o.price) %>/cổ</span>
+          </div>
+          <div class="dim small"><%= formatDate(o.created_at) %></div>
+        </div>
+
+        <div class="pending-details">
+          <div class="detail-item">
+            <span class="dim">Người dùng</span>
+            <span class="bold"><%= o.username %></span>
+          </div>
+          <div class="detail-item">
+            <span class="dim">Số lượng</span>
+            <span><%= o.quantity.toLocaleString('vi-VN') %> cổ</span>
+          </div>
+          <div class="detail-item">
+            <span class="dim">Giá trị GD</span>
+            <span>₫<%= formatVND(o.total_value) %></span>
+          </div>
+          <div class="detail-item">
+            <span class="dim">Phí (0.01%)</span>
+            <span>₫<%= formatVND(o.fee) %></span>
+          </div>
+          <div class="detail-item">
+            <span class="dim"><%= o.order_type === 'buy' ? 'Tổng thu' : 'Tổng nhận' %></span>
+            <span class="bold">
+              <% if (o.order_type === 'buy') { %>
+                <span class="text-sell">₫<%= formatVND(o.total_value + o.fee) %></span>
+              <% } else { %>
+                <span class="text-buy">₫<%= formatVND(o.total_value - o.fee) %></span>
+              <% } %>
+            </span>
+          </div>
+        </div>
+
+        <div class="pending-actions">
+          <form method="POST" action="/admin/orders/<%= o.id %>/approve" class="action-form">
+            <input type="text" name="note" placeholder="Ghi chú (tùy chọn)" class="note-input">
+            <button type="submit" class="btn btn-approve">✓ DUYỆT</button>
+          </form>
+          <form method="POST" action="/admin/orders/<%= o.id %>/reject" class="action-form">
+            <input type="text" name="note" placeholder="Lý do từ chối" class="note-input">
+            <button type="submit" class="btn btn-reject">✗ TỪ CHỐI</button>
+          </form>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Users Overview -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px">NGƯỜI DÙNG (<%= users.length %>)</div>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>TÊN</th>
+          <th class="num">SỐ DƯ</th>
+          <th class="num">GIÁ TRỊ CP</th>
+          <th class="num">TỔNG TÀI SẢN</th>
+          <th class="num">LỆNH ĐANG CHỜ</th>
+          <th>THAM GIA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% const STARTING = 1000000000; %>
+        <% users.forEach(u => { %>
+        <tr>
+          <td class="dim">#<%= u.id %></td>
+          <td><strong><%= u.username %></strong></td>
+          <td class="num">₫<%= formatVND(u.balance) %></td>
+          <td class="num">₫<%= formatVND(u.holdings_value) %></td>
+          <td class="num"><strong>₫<%= formatVND(u.balance + u.holdings_value) %></strong></td>
+          <td class="num">
+            <% if (u.pending_buy_cost > 0) { %>
+              <span class="text-pending">₫<%= formatVND(u.pending_buy_cost) %></span>
+            <% } else { %><span class="dim">—</span><% } %>
+          </td>
+          <td class="dim small"><%= formatDate(u.created_at) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+  <!-- All Orders -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px">TẤT CẢ LỆNH (200 gần nhất)</div>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>USER</th>
+          <th>LOẠI</th>
+          <th>MÃ</th>
+          <th class="num">SL</th>
+          <th class="num">GIÁ</th>
+          <th class="num">GIÁ TRỊ</th>
+          <th>TRẠNG THÁI</th>
+          <th>THỜI GIAN</th>
+          <th>GHI CHÚ</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% allOrders.forEach(o => { %>
+        <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
+          <td class="dim">#<%= o.id %></td>
+          <td><%= o.username %></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
+          <td><span class="ticker"><%= o.ticker %></span></td>
+          <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
+          <td class="num">₫<%= formatVND(o.price) %></td>
+          <td class="num">₫<%= formatVND(o.total_value) %></td>
+          <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? '⏳ CHỜ' : o.status === 'approved' ? '✓ DUYỆT' : '✗ TỪ CHỐI' %></span></td>
+          <td class="dim small"><%= formatDate(o.created_at) %></td>
+          <td class="dim small"><%= o.admin_note || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  </div>
+
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,32 @@
+<%- include('partials/head', { title: 'Đăng nhập' }) %>
+
+<div class="auth-container">
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="auth-title">TRADE MÕM</div>
+      <div class="auth-subtitle">NEVERDIE — Thị trường chứng khoán giả lập</div>
+    </div>
+
+    <% if (error) { %>
+    <div class="alert alert-error"><%= error %></div>
+    <% } %>
+
+    <form method="POST" action="/login">
+      <div class="form-group">
+        <label>TÊN ĐĂNG NHẬP</label>
+        <input type="text" name="username" required autofocus autocomplete="username">
+      </div>
+      <div class="form-group">
+        <label>MẬT KHẨU</label>
+        <input type="password" name="password" required autocomplete="current-password">
+      </div>
+      <button type="submit" class="btn btn-primary btn-full">ĐĂNG NHẬP</button>
+    </form>
+
+    <div class="auth-footer">
+      Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>
+    </div>
+  </div>
+</div>
+
+<%- include('partials/foot') %>

@@ -1,0 +1,169 @@
+<%- include('partials/head', { title: 'Đặt lệnh' }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">ĐẶT LỆNH</h1>
+  </div>
+
+  <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
+  <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
+
+  <div class="two-col">
+    <!-- Order Form -->
+    <div class="card">
+      <form method="POST" action="/orders" id="orderForm">
+
+        <!-- Buy/Sell toggle -->
+        <div class="form-group">
+          <label>LOẠI LỆNH</label>
+          <div class="toggle-group">
+            <label class="toggle-option">
+              <input type="radio" name="order_type" value="buy" id="typeBuy" <%= prefill.type === 'buy' ? 'checked' : '' %>>
+              <span class="toggle-label toggle-buy">MUA</span>
+            </label>
+            <label class="toggle-option">
+              <input type="radio" name="order_type" value="sell" id="typeSell" <%= prefill.type === 'sell' ? 'checked' : '' %>>
+              <span class="toggle-label toggle-sell">BÁN</span>
+            </label>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>MÃ CỔ PHIẾU</label>
+          <input type="text" name="ticker" id="ticker" value="<%= prefill.ticker %>"
+            placeholder="VD: VCB, VNM, HPG" required maxlength="10"
+            style="text-transform:uppercase">
+        </div>
+
+        <div class="form-group">
+          <label>SỐ LƯỢNG <span class="dim">(bội số 100)</span></label>
+          <input type="number" name="quantity" id="quantity" min="100" step="100" placeholder="100" required>
+        </div>
+
+        <div class="form-group">
+          <label>GIÁ (₫/cổ phiếu)</label>
+          <input type="number" name="price" id="price" min="1" step="100" placeholder="25000" required>
+        </div>
+
+        <!-- Live summary -->
+        <div class="order-summary" id="orderSummary" style="display:none">
+          <div class="summary-row">
+            <span>Giá trị giao dịch</span>
+            <span id="sumTotal">—</span>
+          </div>
+          <div class="summary-row">
+            <span>Phí (0.01%)</span>
+            <span id="sumFee">—</span>
+          </div>
+          <div class="summary-row summary-divider">
+            <span id="sumNetLabel">Tổng cần thanh toán</span>
+            <span id="sumNet" class="bold">—</span>
+          </div>
+        </div>
+
+        <div id="balanceCheck" class="small dim" style="margin-top:8px;"></div>
+
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top:20px">GỬI LỆNH</button>
+      </form>
+    </div>
+
+    <!-- Side info -->
+    <div>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px">SỐ DƯ KHẢ DỤNG</div>
+        <div class="big-number">₫<%= formatVND(availableBalance) %></div>
+      </div>
+
+      <% if (holdings.length > 0) { %>
+      <div class="card">
+        <div class="section-title" style="margin-bottom:12px">CỔ PHIẾU KHẢ DỤNG ĐỂ BÁN</div>
+        <table>
+          <thead>
+            <tr><th>MÃ</th><th class="num">KHẢ DỤNG</th></tr>
+          </thead>
+          <tbody>
+            <% holdings.forEach(h => { %>
+            <% if (h.available_quantity > 0) { %>
+            <tr>
+              <td>
+                <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" style="color:inherit">
+                  <span class="ticker"><%= h.ticker %></span>
+                </a>
+              </td>
+              <td class="num"><%= h.available_quantity.toLocaleString('vi-VN') %></td>
+            </tr>
+            <% } %>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+      <div class="card info-card">
+        <div class="section-title" style="margin-bottom:12px">QUY TẮC</div>
+        <div class="info-list">
+          <div>▸ T+2 thanh toán (2 ngày làm việc)</div>
+          <div>▸ Phí 0.01% / lệnh</div>
+          <div>▸ Lô chuẩn: bội số 100 cổ phiếu</div>
+          <div>▸ Lệnh cần admin xét duyệt</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const availBal = <%= availableBalance %>;
+
+  function fmt(n) {
+    return '₫' + Math.round(n).toLocaleString('vi-VN');
+  }
+
+  function calc() {
+    const qty = parseInt(document.getElementById('quantity').value) || 0;
+    const prc = parseFloat(document.getElementById('price').value) || 0;
+    const isBuy = document.getElementById('typeBuy').checked;
+
+    if (qty > 0 && prc > 0) {
+      const total = qty * prc;
+      const fee = total * 0.0001;
+      const net = isBuy ? total + fee : total - fee;
+
+      document.getElementById('sumTotal').textContent = fmt(total);
+      document.getElementById('sumFee').textContent = fmt(fee);
+      document.getElementById('sumNet').textContent = fmt(net);
+      document.getElementById('sumNetLabel').textContent = isBuy ? 'Tổng cần thanh toán' : 'Tiền nhận về';
+      document.getElementById('orderSummary').style.display = 'block';
+
+      if (isBuy) {
+        const check = document.getElementById('balanceCheck');
+        if (net > availBal) {
+          check.textContent = `⚠ Không đủ số dư (thiếu ${fmt(net - availBal)})`;
+          check.style.color = '#ff4444';
+        } else {
+          check.textContent = `✓ Đủ số dư (còn lại: ${fmt(availBal - net)})`;
+          check.style.color = '#888';
+        }
+      } else {
+        document.getElementById('balanceCheck').textContent = '';
+      }
+    } else {
+      document.getElementById('orderSummary').style.display = 'none';
+      document.getElementById('balanceCheck').textContent = '';
+    }
+  }
+
+  document.getElementById('quantity').addEventListener('input', calc);
+  document.getElementById('price').addEventListener('input', calc);
+  document.getElementById('typeBuy').addEventListener('change', calc);
+  document.getElementById('typeSell').addEventListener('change', calc);
+  document.getElementById('ticker').addEventListener('input', function() {
+    this.value = this.value.toUpperCase();
+  });
+
+  // Run on load if prefilled
+  calc();
+</script>
+
+<%- include('partials/foot') %>

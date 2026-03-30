@@ -1,0 +1,70 @@
+<%- include('partials/head', { title: 'Bảng xếp hạng' }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">BẢNG XẾP HẠNG</h1>
+    <span class="dim small">* giá trị danh mục tính theo giá vốn</span>
+  </div>
+
+  <div class="card">
+    <% if (users.length === 0) { %>
+      <div class="empty-state">Chưa có người chơi nào</div>
+    <% } else { %>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>HẠNG</th>
+          <th>NGƯỜI CHƠI</th>
+          <th class="num">SỐ DƯ</th>
+          <th class="num">GIÁ TRỊ CỔ PHIẾU</th>
+          <th class="num">TỔNG TÀI SẢN</th>
+          <th class="num">P&L vs VỐN BAN ĐẦU</th>
+          <th>THAM GIA</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% const STARTING = 1000000000; %>
+        <% users.forEach((u, i) => { %>
+        <%
+          const totalAssets = u.balance + u.holdings_value;
+          const pnl = totalAssets + u.pending_buy_cost - STARTING;
+          const pnlPct = (pnl / STARTING * 100).toFixed(2);
+        %>
+        <tr class="<%= i === 0 ? 'row-top' : '' %>">
+          <td>
+            <% if (i === 0) { %>
+              <span class="rank-1">#1</span>
+            <% } else if (i === 1) { %>
+              <span class="rank-2">#2</span>
+            <% } else if (i === 2) { %>
+              <span class="rank-3">#3</span>
+            <% } else { %>
+              <span class="dim">#<%= i + 1 %></span>
+            <% } %>
+          </td>
+          <td>
+            <strong><%= u.username %></strong>
+            <% if (i === 0) { %> 👑<% } %>
+          </td>
+          <td class="num">₫<%= formatVND(u.balance) %></td>
+          <td class="num">₫<%= formatVND(u.holdings_value) %></td>
+          <td class="num"><strong>₫<%= formatVND(totalAssets + u.pending_buy_cost) %></strong></td>
+          <td class="num">
+            <span class="<%= pnl >= 0 ? 'text-buy' : 'text-sell' %>">
+              <%= pnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnl)) %>
+              (<%= pnl >= 0 ? '+' : '' %><%= pnlPct %>%)
+            </span>
+          </td>
+          <td class="dim small"><%= formatDate(u.created_at) %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+<%- include('partials/foot') %>
