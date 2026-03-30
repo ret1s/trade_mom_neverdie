@@ -236,14 +236,37 @@ app.get('/admin/portfolio', requireAdmin, (req, res) => {
 });
 
 app.post('/admin/prices', requireAdmin, (req, res) => {
-  const { prices } = req.body; // prices = { VCB: '28.4', MBB: '25.75', ... }
+  const { prices } = req.body;
   if (prices && typeof prices === 'object') {
     for (const [ticker, val] of Object.entries(prices)) {
       const p = parseFloat(val);
       if (ticker && p > 0) db.upsertMarketPrice(ticker.toUpperCase(), Math.round(p * 1000));
     }
   }
-  res.redirect('/admin/portfolio?success=Đã cập nhật giá thị trường');
+  res.redirect('/admin/portfolio?success=Đã cập nhật giá thủ công');
+});
+
+app.post('/admin/fetch-prices', requireAdmin, (req, res) => {
+  const { spawn } = require('child_process');
+  const script = path.join(__dirname, 'fetch_prices.py');
+  const proc = spawn('python3', [script], { cwd: __dirname });
+
+  let stdout = '';
+  let stderr = '';
+  proc.stdout.on('data', d => { stdout += d.toString(); });
+  proc.stderr.on('data', d => { stderr += d.toString(); });
+
+  proc.on('close', code => {
+    try {
+      const lastLine = stdout.trim().split('\n').filter(l => l.startsWith('{')).pop();
+      const result = JSON.parse(lastLine);
+      const msg = `VNStock: cập nhật ${result.updated.length} mã` +
+        (result.errors.length ? ` (${result.errors.length} lỗi: ${result.errors.map(e => e.ticker).join(', ')})` : '');
+      res.redirect('/admin/portfolio?success=' + encodeURIComponent(msg));
+    } catch {
+      res.redirect('/admin/portfolio?error=' + encodeURIComponent('Lỗi fetch: ' + (stderr || stdout).slice(0, 200)));
+    }
+  });
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────
