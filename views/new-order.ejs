@@ -1,104 +1,101 @@
-<%- include('partials/head', { title: 'Đặt lệnh' }) %>
+<%- include('partials/head', { title: t.page_new_order }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">ĐẶT LỆNH</h1>
+    <h1 class="page-title"><%= t.page_new_order %></h1>
   </div>
 
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
   <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
   <div class="two-col">
-    <!-- Order Form -->
     <div class="card">
       <form method="POST" action="/orders" id="orderForm">
 
-        <!-- Buy/Sell toggle -->
         <div class="form-group">
-          <label>LOẠI LỆNH</label>
+          <label><%= t.label_order_type %></label>
           <div class="toggle-group">
             <label class="toggle-option">
               <input type="radio" name="order_type" value="buy" id="typeBuy" <%= prefill.type === 'buy' ? 'checked' : '' %>>
-              <span class="toggle-label toggle-buy">MUA</span>
+              <span class="toggle-label toggle-buy"><%= t.type_buy %></span>
             </label>
             <label class="toggle-option">
               <input type="radio" name="order_type" value="sell" id="typeSell" <%= prefill.type === 'sell' ? 'checked' : '' %>>
-              <span class="toggle-label toggle-sell">BÁN</span>
+              <span class="toggle-label toggle-sell"><%= t.type_sell %></span>
             </label>
           </div>
         </div>
 
         <div class="form-group">
-          <label>MÃ CỔ PHIẾU</label>
+          <label><%= t.label_ticker %></label>
           <input type="text" name="ticker" id="ticker" value="<%= prefill.ticker %>"
-            placeholder="VD: VCB, VNM, HPG" required maxlength="10"
+            placeholder="<%= t.placeholder_ticker %>" required maxlength="10"
             style="text-transform:uppercase">
         </div>
 
-        <!-- Holding info (shown when selling a held ticker) -->
         <div id="holdingInfo" class="holding-info" style="display:none">
           <div class="holding-info-row">
-            <span class="dim">Giá vốn TB</span>
+            <span class="dim"><%= t.label_holding_cost %></span>
             <span id="holdingCost" class="bold">—</span>
           </div>
           <div class="holding-info-row">
-            <span class="dim">Khả dụng</span>
+            <span class="dim"><%= t.label_holding_avail %></span>
             <span id="holdingQty">—</span>
           </div>
         </div>
 
         <div class="form-group">
-          <label>SỐ LƯỢNG <span class="dim">(bội số 100)</span></label>
+          <label><%= t.label_qty %></label>
           <input type="number" name="quantity" id="quantity" min="100" step="100" placeholder="100" required>
         </div>
 
         <div class="form-group">
-          <label>GIÁ <span class="dim">(nghìn đồng — VD: 28.4 = 28,400₫/cổ)</span></label>
+          <label><%= t.label_price %></label>
           <input type="number" name="price" id="price" min="0.01" step="0.01" placeholder="28.4" required>
         </div>
 
-        <!-- Live summary -->
         <div class="order-summary" id="orderSummary" style="display:none">
           <div class="summary-row">
-            <span>Giá trị giao dịch</span>
+            <span><%= t.sum_trade_val %></span>
             <span id="sumTotal">—</span>
           </div>
           <div class="summary-row">
-            <span id="pnlRow" style="display:none">
-              P&L ước tính
-            </span>
+            <span id="pnlRow" style="display:none"><%= t.sum_est_pnl %></span>
             <span id="sumPnl" style="display:none">—</span>
           </div>
           <div class="summary-row">
-            <span>Phí (0.1%)</span>
+            <span><%= t.sum_fee %></span>
             <span id="sumFee">—</span>
           </div>
           <div class="summary-row summary-divider">
-            <span id="sumNetLabel">Tổng cần thanh toán</span>
+            <span id="sumNetLabel"><%= t.sum_pay %></span>
             <span id="sumNet" class="bold">—</span>
           </div>
         </div>
 
         <div id="balanceCheck" class="small dim" style="margin-top:8px;"></div>
 
-        <button type="submit" class="btn btn-primary btn-full" style="margin-top:20px">GỬI LỆNH</button>
+        <button type="submit" class="btn btn-primary btn-full" style="margin-top:20px"><%= t.btn_submit %></button>
       </form>
     </div>
 
-    <!-- Side info -->
     <div>
       <div class="card">
-        <div class="section-title" style="margin-bottom:12px">SỐ DƯ KHẢ DỤNG</div>
+        <div class="section-title" style="margin-bottom:12px"><%= t.sidebar_balance %></div>
         <div class="big-number">₫<%= formatVND(availableBalance) %></div>
       </div>
 
       <% if (holdings.length > 0) { %>
       <div class="card">
-        <div class="section-title" style="margin-bottom:12px">CỔ PHIẾU KHẢ DỤNG ĐỂ BÁN</div>
+        <div class="section-title" style="margin-bottom:12px"><%= t.sidebar_sellable %></div>
         <table>
           <thead>
-            <tr><th>MÃ</th><th class="num">GIÁ VỐN</th><th class="num">KHẢ DỤNG</th></tr>
+            <tr>
+              <th><%= t.col_ticker %></th>
+              <th class="num"><%= t.col_cost_short %></th>
+              <th class="num"><%= t.col_avail_short %></th>
+            </tr>
           </thead>
           <tbody>
             <% holdings.forEach(h => { %>
@@ -118,25 +115,17 @@
         </table>
       </div>
       <% } %>
-
-      <div class="card info-card">
-        <div class="section-title" style="margin-bottom:12px">QUY TẮC</div>
-        <div class="info-list">
-          <div>▸ T+2 thanh toán (2 ngày làm việc)</div>
-          <div>▸ Phí 0.1% / lệnh</div>
-          <div>▸ Lô chuẩn: bội số 100 cổ phiếu</div>
-          <div>▸ Lệnh cần admin xét duyệt</div>
-          <div>▸ Giá nhập theo nghìn đồng (28.4 = 28,400₫)</div>
-        </div>
-      </div>
     </div>
   </div>
 </div>
 
 <script>
   const availBal = <%= availableBalance %>;
+  const sumPayLabel    = '<%= t.sum_pay %>';
+  const sumReceiveLabel = '<%= t.sum_receive %>';
+  const balOkPrefix  = '<%= t.js_balance_ok %>';
+  const balLowPrefix = '<%= t.js_balance_low %>';
 
-  // Holdings map: ticker → { avgCost (actual VND), availableQty }
   const holdingsMap = {};
   <% holdings.forEach(h => { %>
   holdingsMap['<%= h.ticker %>'] = { avgCost: <%= h.avg_cost %>, availableQty: <%= h.available_quantity %> };
@@ -151,12 +140,10 @@
     const isSell = document.getElementById('typeSell').checked;
     const info = holdingsMap[ticker];
     const box = document.getElementById('holdingInfo');
-
     if (isSell && info) {
-      const avgCostK = (info.avgCost / 1000).toFixed(2);
-      document.getElementById('holdingCost').textContent = avgCostK + ' nghìn (' + fmt(info.avgCost) + '/cổ)';
-      document.getElementById('holdingQty').textContent = info.availableQty.toLocaleString('vi-VN') + ' cổ';
-      box.style.display = 'block';
+      document.getElementById('holdingCost').textContent = (info.avgCost / 1000).toFixed(2);
+      document.getElementById('holdingQty').textContent = info.availableQty.toLocaleString('vi-VN');
+      box.style.display = 'flex';
     } else {
       box.style.display = 'none';
     }
@@ -164,8 +151,8 @@
 
   function calc() {
     const qty    = parseInt(document.getElementById('quantity').value) || 0;
-    const prcK   = parseFloat(document.getElementById('price').value) || 0; // in thousands VND
-    const prc    = prcK * 1000; // actual VND
+    const prcK   = parseFloat(document.getElementById('price').value) || 0;
+    const prc    = prcK * 1000;
     const isBuy  = document.getElementById('typeBuy').checked;
     const ticker = document.getElementById('ticker').value.toUpperCase();
 
@@ -177,10 +164,9 @@
       document.getElementById('sumTotal').textContent = fmt(total);
       document.getElementById('sumFee').textContent   = fmt(fee);
       document.getElementById('sumNet').textContent   = fmt(net);
-      document.getElementById('sumNetLabel').textContent = isBuy ? 'Tổng cần thanh toán' : 'Tiền nhận về';
+      document.getElementById('sumNetLabel').textContent = isBuy ? sumPayLabel : sumReceiveLabel;
       document.getElementById('orderSummary').style.display = 'block';
 
-      // P&L estimate when selling a held stock
       const pnlRow = document.getElementById('pnlRow');
       const sumPnl = document.getElementById('sumPnl');
       if (!isBuy && holdingsMap[ticker]) {
@@ -199,10 +185,10 @@
       if (isBuy) {
         const check = document.getElementById('balanceCheck');
         if (net > availBal) {
-          check.textContent = '⚠ Không đủ số dư (thiếu ' + fmt(net - availBal) + ')';
+          check.textContent = balLowPrefix + fmt(net - availBal);
           check.style.color = 'var(--red)';
         } else {
-          check.textContent = '✓ Đủ số dư (còn lại: ' + fmt(availBal - net) + ')';
+          check.textContent = balOkPrefix + fmt(availBal - net);
           check.style.color = 'var(--text-dim)';
         }
       } else {
@@ -224,7 +210,6 @@
     calc();
   });
 
-  // Run on load
   updateHoldingInfo();
   calc();
 </script>

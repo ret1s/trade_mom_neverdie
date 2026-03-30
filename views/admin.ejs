@@ -1,10 +1,10 @@
-<%- include('partials/head', { title: 'Admin Panel' }) %>
+<%- include('partials/head', { title: t.page_admin }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">ADMIN PANEL</h1>
-    <span class="dim">Quản lý lệnh giao dịch</span>
+    <h1 class="page-title"><%= t.page_admin %></h1>
+    <span class="dim"><%= t.admin_subtitle %></span>
   </div>
 
   <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
@@ -13,14 +13,14 @@
   <!-- Pending Orders -->
   <div class="card">
     <div class="section-header">
-      <div class="section-title">LỆNH CHỜ DUYỆT</div>
+      <div class="section-title"><%= t.pending_title %></div>
       <span class="badge <%= pendingOrders.length > 0 ? 'badge-pending' : 'badge-approved' %>">
-        <%= pendingOrders.length %> lệnh
+        <%= pendingOrders.length %> <%= t.orders_suffix %>
       </span>
     </div>
 
     <% if (pendingOrders.length === 0) { %>
-      <div class="empty-state">Không có lệnh nào đang chờ duyệt ✓</div>
+      <div class="empty-state"><%= t.no_pending %></div>
     <% } else { %>
     <div class="pending-list">
       <% pendingOrders.forEach(o => { %>
@@ -28,33 +28,33 @@
         <div class="pending-header">
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span class="dim small">#<%= o.id %></span>
-            <span class="badge-type badge-<%= o.order_type %> big"><%= o.order_type === 'buy' ? '▲ MUA' : '▼ BÁN' %></span>
+            <span class="badge-type badge-<%= o.order_type %> big"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span>
             <span class="ticker big"><%= o.ticker %></span>
             <span class="bold">@</span>
-            <span><%= (o.price / 1000).toFixed(2) %> nghìn/cổ</span>
+            <span><%= (o.price / 1000).toFixed(2) %></span>
           </div>
           <div class="dim small"><%= formatDate(o.created_at) %></div>
         </div>
 
         <div class="pending-details">
           <div class="detail-item">
-            <span class="dim">Người dùng</span>
+            <span class="dim"><%= t.label_user %></span>
             <span class="bold"><%= o.username %></span>
           </div>
           <div class="detail-item">
-            <span class="dim">Số lượng</span>
-            <span><%= o.quantity.toLocaleString('vi-VN') %> cổ</span>
+            <span class="dim"><%= t.label_qty_detail %></span>
+            <span><%= o.quantity.toLocaleString('vi-VN') %></span>
           </div>
           <div class="detail-item">
-            <span class="dim">Giá trị GD</span>
+            <span class="dim"><%= t.label_trade_val %></span>
             <span>₫<%= formatVND(o.total_value) %></span>
           </div>
           <div class="detail-item">
-            <span class="dim">Phí (0.01%)</span>
+            <span class="dim"><%= t.label_fee %></span>
             <span>₫<%= formatVND(o.fee) %></span>
           </div>
           <div class="detail-item">
-            <span class="dim"><%= o.order_type === 'buy' ? 'Tổng thu' : 'Tổng nhận' %></span>
+            <span class="dim"><%= o.order_type === 'buy' ? t.label_total_buy : t.label_total_sell %></span>
             <span class="bold">
               <% if (o.order_type === 'buy') { %>
                 <span class="text-sell">₫<%= formatVND(o.total_value + o.fee) %></span>
@@ -67,12 +67,12 @@
 
         <div class="pending-actions">
           <form method="POST" action="/admin/orders/<%= o.id %>/approve" class="action-form">
-            <input type="text" name="note" placeholder="Ghi chú (tùy chọn)" class="note-input">
-            <button type="submit" class="btn btn-approve">✓ DUYỆT</button>
+            <input type="text" name="note" placeholder="<%= t.note_ph_approve %>" class="note-input">
+            <button type="submit" class="btn btn-approve"><%= t.btn_approve %></button>
           </form>
           <form method="POST" action="/admin/orders/<%= o.id %>/reject" class="action-form">
-            <input type="text" name="note" placeholder="Lý do từ chối" class="note-input">
-            <button type="submit" class="btn btn-reject">✗ TỪ CHỐI</button>
+            <input type="text" name="note" placeholder="<%= t.note_ph_reject %>" class="note-input">
+            <button type="submit" class="btn btn-reject"><%= t.btn_reject %></button>
           </form>
         </div>
       </div>
@@ -83,17 +83,17 @@
 
   <!-- Users Overview -->
   <div class="card">
-    <div class="section-title" style="margin-bottom:16px">NGƯỜI DÙNG (<%= users.length %>)</div>
+    <div class="section-title" style="margin-bottom:16px"><%= t.users_title %> (<%= users.length %>)</div>
     <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>TÊN</th>
-          <th class="num">SỐ DƯ</th>
-          <th class="num">GIÁ TRỊ CP (giá TT)</th>
-          <th class="num">TỔNG TÀI SẢN</th>
-          <th class="num">P&L</th>
-          <th class="num">LỆNH CHỜ</th>
+          <th><%= t.col_player %></th>
+          <th class="num"><%= t.col_balance %></th>
+          <th class="num"><%= t.col_market_val %></th>
+          <th class="num"><%= t.col_total %></th>
+          <th class="num"><%= t.col_pnl %></th>
+          <th class="num"><%= t.col_pending_buy %></th>
         </tr>
       </thead>
       <tbody>
@@ -114,7 +114,7 @@
             ₫<%= formatVND(u.holdings_value) %>
             <% if (unrealPnl !== 0) { %>
               <div class="tiny-dim <%= unrealPnl >= 0 ? 'text-buy' : 'text-sell' %>">
-                <%= unrealPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealPnl)) %> vs vốn
+                <%= unrealPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealPnl)) %>
               </div>
             <% } %>
           </td>
@@ -141,21 +141,21 @@
 
   <!-- All Orders -->
   <div class="card">
-    <div class="section-title" style="margin-bottom:16px">TẤT CẢ LỆNH (200 gần nhất)</div>
+    <div class="section-title" style="margin-bottom:16px"><%= t.all_orders_title %></div>
     <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>#</th>
-          <th>USER</th>
-          <th>LOẠI</th>
-          <th>MÃ</th>
-          <th class="num">SL</th>
-          <th class="num">GIÁ</th>
-          <th class="num">GIÁ TRỊ</th>
-          <th>TRẠNG THÁI</th>
-          <th>THỜI GIAN</th>
-          <th>GHI CHÚ</th>
+          <th><%= t.col_user %></th>
+          <th><%= t.col_type %></th>
+          <th><%= t.col_ticker %></th>
+          <th class="num"><%= t.col_qty_short %></th>
+          <th class="num"><%= t.col_price %></th>
+          <th class="num"><%= t.col_value %></th>
+          <th><%= t.col_status %></th>
+          <th><%= t.col_time %></th>
+          <th><%= t.col_note %></th>
         </tr>
       </thead>
       <tbody>
@@ -163,12 +163,12 @@
         <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
           <td class="dim">#<%= o.id %></td>
           <td><%= o.username %></td>
-          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
-          <td class="num"><%= (o.price / 1000).toFixed(2) %> <span class="dim">n</span></td>
+          <td class="num"><%= (o.price / 1000).toFixed(2) %></td>
           <td class="num">₫<%= formatVND(o.total_value) %></td>
-          <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? '⏳ CHỜ' : o.status === 'approved' ? '✓ DUYỆT' : '✗ TỪ CHỐI' %></span></td>
+          <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? t.status_pending : o.status === 'approved' ? t.status_approved : t.status_rejected %></span></td>
           <td class="dim small"><%= formatDate(o.created_at) %></td>
           <td class="dim small"><%= o.admin_note || '—' %></td>
         </tr>

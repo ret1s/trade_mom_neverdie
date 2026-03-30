@@ -1,4 +1,4 @@
-<%- include('partials/head', { title: 'Danh mục' }) %>
+<%- include('partials/head', { title: t.page_dashboard }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
@@ -7,11 +7,10 @@
   <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
 
   <div class="page-header">
-    <h1 class="page-title">DANH MỤC</h1>
-    <a href="/orders/new" class="btn btn-primary">+ ĐẶT LỆNH MỚI</a>
+    <h1 class="page-title"><%= t.page_dashboard %></h1>
+    <a href="/orders/new" class="btn btn-primary"><%= t.btn_new_order %></a>
   </div>
 
-  <!-- Stats -->
   <%
     let marketHoldingsValue = 0;
     let hasMarketPrices = false;
@@ -28,24 +27,24 @@
   %>
   <div class="stats-bar">
     <div class="stat-card">
-      <div class="stat-label">SỐ DƯ KHẢ DỤNG</div>
+      <div class="stat-label"><%= t.stat_avail_balance %></div>
       <div class="stat-value">₫<%= formatVND(availableBalance) %></div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">DANH MỤC <%= hasMarketPrices ? '(GIÁ TT)' : '(GIÁ VỐN)' %></div>
+      <div class="stat-label"><%= t.stat_portfolio %></div>
       <div class="stat-value">₫<%= formatVND(marketHoldingsValue) %></div>
       <% if (unrealizedPnl !== null) { %>
         <div class="stat-note <%= unrealizedPnl >= 0 ? 'text-buy' : 'text-sell' %>">
-          <%= unrealizedPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealizedPnl)) %> lãi/lỗ chưa TH
+          <%= unrealizedPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealizedPnl)) %> <%= t.stat_unrealized %>
         </div>
       <% } %>
     </div>
     <div class="stat-card">
-      <div class="stat-label">TỔNG TÀI SẢN</div>
+      <div class="stat-label"><%= t.stat_total_assets %></div>
       <div class="stat-value highlight">₫<%= formatVND(totalAssets) %></div>
     </div>
     <div class="stat-card">
-      <div class="stat-label">P&L vs VỐN BAN ĐẦU</div>
+      <div class="stat-label"><%= t.stat_pnl %></div>
       <% const pnlVsStart = totalAssets - 1000000000; %>
       <div class="stat-value <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
         <%= pnlVsStart >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnlVsStart)) %>
@@ -56,27 +55,26 @@
     </div>
   </div>
 
-  <!-- Holdings -->
   <div class="card">
     <div class="section-header">
-      <div class="section-title">CỔ PHIẾU ĐANG NẮM GIỮ</div>
-      <span class="dim"><%= holdings.length %> mã</span>
+      <div class="section-title"><%= t.holdings_title %></div>
+      <span class="dim"><%= holdings.length %></span>
     </div>
     <% if (holdings.length === 0) { %>
-      <div class="empty-state">Chưa có cổ phiếu nào. <a href="/orders/new">Đặt lệnh mua đầu tiên</a></div>
+      <div class="empty-state"><%= t.no_holdings %> <a href="/orders/new"><%= t.no_holdings_link %></a></div>
     <% } else { %>
     <div class="table-wrap">
     <table>
       <thead>
         <tr>
-          <th>MÃ</th>
-          <th class="num">KL</th>
-          <th class="num">KHẢ DỤNG / T+2</th>
-          <th class="num">GIÁ VỐN TB</th>
-          <th class="num">GIÁ TT</th>
-          <th class="num">VỐN ĐẦU TƯ</th>
-          <th class="num">GIÁ TRỊ TT</th>
-          <th class="num">LÃI/LỖ</th>
+          <th><%= t.col_ticker %></th>
+          <th class="num"><%= t.col_qty %></th>
+          <th class="num"><%= t.col_available %></th>
+          <th class="num"><%= t.col_cost %></th>
+          <th class="num"><%= t.col_market %></th>
+          <th class="num"><%= t.col_invested %></th>
+          <th class="num"><%= t.col_market_val %></th>
+          <th class="num"><%= t.col_pnl %></th>
           <th></th>
         </tr>
       </thead>
@@ -94,16 +92,15 @@
           <td class="num">
             <%= h.available_quantity.toLocaleString('vi-VN') %>
             <% if (h.locked_quantity > 0) { %>
-              <div class="tiny-dim locked">⏳ +<%= h.locked_quantity.toLocaleString('vi-VN') %>
+              <div class="tiny-dim">+<%= h.locked_quantity.toLocaleString('vi-VN') %>
                 <% if (h.next_settlement) { %>(<%= h.next_settlement %>)<% } %>
               </div>
             <% } %>
           </td>
-          <td class="num"><%= (h.avg_cost / 1000).toFixed(2) %> <span class="dim">n</span></td>
+          <td class="num"><%= (h.avg_cost / 1000).toFixed(2) %></td>
           <td class="num">
             <% if (h.market_price) { %>
               <span class="bold <%= pnl >= 0 ? 'text-buy' : 'text-sell' %>"><%= (h.market_price / 1000).toFixed(2) %></span>
-              <span class="dim">n</span>
             <% } else { %>
               <span class="dim">—</span>
             <% } %>
@@ -126,7 +123,7 @@
           </td>
           <td>
             <% if (h.available_quantity > 0) { %>
-            <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" class="btn btn-sm btn-sell">BÁN</a>
+            <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" class="btn btn-sm btn-sell"><%= t.btn_sell %></a>
             <% } %>
           </td>
         </tr>
@@ -137,39 +134,38 @@
     <% } %>
   </div>
 
-  <!-- Recent Orders -->
   <div class="card">
     <div class="section-header">
-      <div class="section-title">LỆNH GẦN ĐÂY</div>
-      <a href="/orders" class="dim small-link">Xem tất cả →</a>
+      <div class="section-title"><%= t.recent_orders %></div>
+      <a href="/orders" class="dim small-link"><%= t.view_all %></a>
     </div>
     <% if (recentOrders.length === 0) { %>
-      <div class="empty-state">Chưa có lệnh nào</div>
+      <div class="empty-state"><%= t.no_orders %></div>
     <% } else { %>
     <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>#</th>
-          <th>LOẠI</th>
-          <th>MÃ</th>
-          <th class="num">SL</th>
-          <th class="num">GIÁ</th>
-          <th class="num">GIÁ TRỊ</th>
-          <th>TRẠNG THÁI</th>
-          <th>THỜI GIAN</th>
+          <th><%= t.col_type %></th>
+          <th><%= t.col_ticker %></th>
+          <th class="num"><%= t.col_qty_short %></th>
+          <th class="num"><%= t.col_price %></th>
+          <th class="num"><%= t.col_value %></th>
+          <th><%= t.col_status %></th>
+          <th><%= t.col_time %></th>
         </tr>
       </thead>
       <tbody>
         <% recentOrders.forEach(o => { %>
         <tr>
           <td class="dim">#<%= o.id %></td>
-          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
-          <td class="num"><%= (o.price / 1000).toFixed(2) %> <span class="dim">n</span></td>
+          <td class="num"><%= (o.price / 1000).toFixed(2) %></td>
           <td class="num">₫<%= formatVND(o.total_value) %></td>
-          <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? '⏳ CHỜ' : o.status === 'approved' ? '✓ DUYỆT' : '✗ TỪ CHỐI' %></span></td>
+          <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? t.status_pending : o.status === 'approved' ? t.status_approved : t.status_rejected %></span></td>
           <td class="dim small"><%= formatDate(o.created_at) %></td>
         </tr>
         <% }) %>

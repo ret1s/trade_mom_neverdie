@@ -13,7 +13,7 @@
   --green:       #00cc66;
   --red:         #ff3333;
   --yellow:      #ffaa00;
-  --font: 'Courier New', Courier, monospace;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
 }
 
 html.light {
@@ -61,7 +61,7 @@ nav {
   font-size: 16px;
   font-weight: bold;
   color: var(--text-bright);
-  letter-spacing: 3px;
+  letter-spacing: 2px;
   text-decoration: none;
 }
 .nav-brand:hover { text-decoration: none; }
@@ -591,6 +591,10 @@ html.light .holding-info {
   margin-left: 8px;
 }
 .theme-toggle:hover { color: var(--text-bright); border-color: var(--text-bright); }
+
+/* ─── Lang toggle form ───────────────────────────────────────────────────────── */
+.nav-links form { display: inline; }
+.nav-links form .theme-toggle { margin-left: 0; }
 
 /* ─── Empty state ────────────────────────────────────────────────────────────── */
 .empty-state {

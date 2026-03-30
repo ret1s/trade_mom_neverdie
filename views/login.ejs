@@ -1,13 +1,20 @@
-<%- include('partials/head', { title: 'Đăng nhập' }) %>
+<%- include('partials/head', { title: t.auth_login_btn }) %>
 
-<button id="themeToggle" class="theme-toggle" style="position:fixed;top:12px;right:16px;" title="Toggle light/dark">◐</button>
-<script>document.getElementById('themeToggle').addEventListener('click',function(){var l=document.documentElement.classList.toggle('light');localStorage.setItem('theme',l?'light':'dark');});</script>
+<div style="position:fixed;top:12px;right:16px;display:flex;gap:6px">
+  <form method="POST" action="/lang" style="display:inline">
+    <button type="submit" class="theme-toggle"><%= t.nav_lang_switch %></button>
+  </form>
+  <button id="themeToggle" class="theme-toggle">◐</button>
+</div>
+<script>
+  document.getElementById('themeToggle').addEventListener('click',function(){var l=document.documentElement.classList.toggle('light');localStorage.setItem('theme',l?'light':'dark');});
+</script>
 
 <div class="auth-container">
   <div class="auth-box">
     <div class="auth-logo">
-      <div class="auth-title">TRADE MÕM</div>
-      <div class="auth-subtitle">NEVERDIE — Thị trường chứng khoán giả lập</div>
+      <div class="auth-title">TRADE MOM</div>
+      <div class="auth-subtitle"><%= t.auth_subtitle_login %></div>
     </div>
 
     <% if (error) { %>
@@ -16,18 +23,18 @@
 
     <form method="POST" action="/login">
       <div class="form-group">
-        <label>TÊN ĐĂNG NHẬP</label>
+        <label><%= t.auth_username %></label>
         <input type="text" name="username" required autofocus autocomplete="username">
       </div>
       <div class="form-group">
-        <label>MẬT KHẨU</label>
+        <label><%= t.auth_password %></label>
         <input type="password" name="password" required autocomplete="current-password">
       </div>
-      <button type="submit" class="btn btn-primary btn-full">ĐĂNG NHẬP</button>
+      <button type="submit" class="btn btn-primary btn-full"><%= t.auth_login_btn %></button>
     </form>
 
     <div class="auth-footer">
-      Chưa có tài khoản? <a href="/register">Đăng ký ngay</a>
+      <%= t.auth_no_account %> <a href="/register"><%= t.auth_register_link %></a>
     </div>
   </div>
 </div>

@@ -1,19 +1,22 @@
 <nav>
-  <a href="/" class="nav-brand">TRADE MÕM<span class="nav-brand-sub">NEVERDIE</span></a>
+  <a href="/" class="nav-brand">TRADE MOM<span class="nav-brand-sub">NEVERDIE</span></a>
   <div class="nav-links">
     <% if (user) { %>
       <% if (user.role === 'admin') { %>
-        <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>">LỆNH</a>
-        <a href="/admin/portfolio" class="<%= currentPath === '/admin/portfolio' ? 'active' : '' %>">PORTFOLIO</a>
+        <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>"><%= t.nav_admin_orders %></a>
+        <a href="/admin/portfolio" class="<%= currentPath === '/admin/portfolio' ? 'active' : '' %>"><%= t.nav_portfolio %></a>
       <% } else { %>
-        <a href="/dashboard" class="<%= currentPath === '/dashboard' ? 'active' : '' %>">DANH MỤC</a>
-        <a href="/orders/new" class="<%= currentPath === '/orders/new' ? 'active' : '' %>">ĐẶT LỆNH</a>
-        <a href="/orders" class="<%= currentPath === '/orders' ? 'active' : '' %>">LỆNH CỦA TÔI</a>
-        <a href="/leaderboard" class="<%= currentPath === '/leaderboard' ? 'active' : '' %>">BXH</a>
+        <a href="/dashboard" class="<%= currentPath === '/dashboard' ? 'active' : '' %>"><%= t.nav_dashboard %></a>
+        <a href="/orders/new" class="<%= currentPath === '/orders/new' ? 'active' : '' %>"><%= t.nav_new_order %></a>
+        <a href="/orders" class="<%= currentPath === '/orders' ? 'active' : '' %>"><%= t.nav_my_orders %></a>
+        <a href="/leaderboard" class="<%= currentPath === '/leaderboard' ? 'active' : '' %>"><%= t.nav_leaderboard %></a>
       <% } %>
-      <a href="/logout" class="nav-logout">↩ <%= user.display_name || user.username %></a>
+      <a href="/logout" class="nav-logout"><%= user.display_name || user.username %></a>
     <% } %>
-    <button id="themeToggle" class="theme-toggle" title="Toggle light/dark mode">◐</button>
+    <form method="POST" action="/lang" style="display:inline;margin-left:4px">
+      <button type="submit" class="theme-toggle"><%= t.nav_lang_switch %></button>
+    </form>
+    <button id="themeToggle" class="theme-toggle" title="Toggle light/dark">◐</button>
   </div>
 </nav>
 
@@ -21,9 +24,7 @@
   (function() {
     const root = document.documentElement;
     const btn  = document.getElementById('themeToggle');
-    const saved = localStorage.getItem('theme');
-    if (saved === 'light') root.classList.add('light');
-
+    if (localStorage.getItem('theme') === 'light') root.classList.add('light');
     btn.addEventListener('click', function() {
       const isLight = root.classList.toggle('light');
       localStorage.setItem('theme', isLight ? 'light' : 'dark');

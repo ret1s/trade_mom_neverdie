@@ -1,12 +1,12 @@
-<%- include('partials/head', { title: 'Portfolio' }) %>
+<%- include('partials/head', { title: t.page_portfolio }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">PORTFOLIO</h1>
+    <h1 class="page-title"><%= t.page_portfolio %></h1>
     <form method="POST" action="/admin/fetch-prices" id="fetchForm">
       <button type="submit" class="btn btn-primary" id="fetchBtn">
-        ↻ FETCH TỪ VNSTOCK
+        <%= t.btn_fetch %>
       </button>
     </form>
   </div>
@@ -14,15 +14,15 @@
   <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
   <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
 
-  <!-- ─── Price Table ──────────────────────────────────────────────────────── -->
+  <!-- Price Table -->
   <div class="card">
     <div class="section-header">
-      <div class="section-title">GIÁ THỊ TRƯỜNG</div>
-      <span class="dim small">Tự động từ VNStock · Sửa tay bên dưới nếu cần</span>
+      <div class="section-title"><%= t.market_prices_title %></div>
+      <span class="dim small"><%= t.market_prices_sub %></span>
     </div>
 
     <% if (tickers.length === 0) { %>
-      <div class="empty-state">Không có cổ phiếu nào đang nắm giữ</div>
+      <div class="empty-state"><%= t.no_holdings_admin %></div>
     <% } else { %>
 
     <form method="POST" action="/admin/prices" id="manualPriceForm">
@@ -30,30 +30,30 @@
       <table>
         <thead>
           <tr>
-            <th>MÃ</th>
-            <th class="num">GIÁ VỐN TB</th>
-            <th class="num">GIÁ TT (nghìn)</th>
-            <th class="num">THAY ĐỔI</th>
-            <th class="num">CẬP NHẬT LÚC</th>
-            <th class="num">SỬA TAY</th>
+            <th><%= t.col_ticker %></th>
+            <th class="num"><%= t.col_avg_cost %></th>
+            <th class="num"><%= t.col_market_k %></th>
+            <th class="num"><%= t.col_change %></th>
+            <th class="num"><%= t.col_updated %></th>
+            <th class="num"><%= t.col_manual %></th>
           </tr>
         </thead>
         <tbody>
-          <% tickers.forEach(t => { %>
+          <% tickers.forEach(t_ => { %>
           <%
-            const chg = t.market_price
-              ? ((t.market_price - t.avg_cost_all) / t.avg_cost_all * 100).toFixed(2)
+            const chg = t_.market_price
+              ? ((t_.market_price - t_.avg_cost_all) / t_.avg_cost_all * 100).toFixed(2)
               : null;
           %>
           <tr>
-            <td><span class="ticker"><%= t.ticker %></span>
-              <span class="dim small"> · <%= t.holder_count %> người</span>
+            <td><span class="ticker"><%= t_.ticker %></span>
+              <span class="dim small"> · <%= t_.holder_count %> <%= t.col_holders %></span>
             </td>
-            <td class="num dim"><%= (t.avg_cost_all / 1000).toFixed(2) %></td>
+            <td class="num dim"><%= (t_.avg_cost_all / 1000).toFixed(2) %></td>
             <td class="num">
-              <% if (t.market_price) { %>
+              <% if (t_.market_price) { %>
                 <span class="bold <%= chg >= 0 ? 'text-buy' : 'text-sell' %>">
-                  <%= (t.market_price / 1000).toFixed(2) %>
+                  <%= (t_.market_price / 1000).toFixed(2) %>
                 </span>
               <% } else { %>
                 <span class="dim">—</span>
@@ -66,13 +66,13 @@
                 </span>
               <% } else { %><span class="dim">—</span><% } %>
             </td>
-            <td class="num dim small"><%= t.price_updated_at ? formatDate(t.price_updated_at) : '—' %></td>
+            <td class="num dim small"><%= t_.price_updated_at ? formatDate(t_.price_updated_at) : '—' %></td>
             <td class="num">
               <input
                 type="number"
-                name="prices[<%= t.ticker %>]"
+                name="prices[<%= t_.ticker %>]"
                 step="0.01" min="0.01"
-                placeholder="<%= t.market_price ? (t.market_price / 1000).toFixed(2) : '...' %>"
+                placeholder="<%= t_.market_price ? (t_.market_price / 1000).toFixed(2) : '...' %>"
                 class="price-input"
               >
             </td>
@@ -83,14 +83,14 @@
       </div>
       <div style="margin-top:14px">
         <button type="submit" class="btn" style="border-color:var(--border2);color:var(--text-dim)">
-          LƯU SỬA TAY
+          <%= t.btn_save_manual %>
         </button>
       </div>
     </form>
     <% } %>
   </div>
 
-  <!-- ─── Per-User Portfolio ───────────────────────────────────────────────── -->
+  <!-- Per-User Portfolio -->
   <%
     const byUser = {};
     portfolios.forEach(row => {
@@ -123,17 +123,17 @@
     <div class="user-portfolio-header">
       <div>
         <div class="bold" style="font-size:15px"><%= u.display_name || u.username %></div>
-        <div class="dim small">Tiền mặt: ₫<%= formatVND(u.balance) %></div>
+        <div class="dim small"><%= t.cash_label %>: ₫<%= formatVND(u.balance) %></div>
       </div>
       <div style="text-align:right">
-        <div class="bold" style="font-size:15px">₫<%= formatVND(totalAssets) %> tổng tài sản</div>
+        <div class="bold" style="font-size:15px">₫<%= formatVND(totalAssets) %> <%= t.total_assets_label %></div>
         <div class="small <%= totalPnl >= 0 ? 'text-buy' : 'text-sell' %>">
           P&L: <%= totalPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(totalPnl)) %>
           &nbsp;(<%= (totalPnl / STARTING * 100).toFixed(2) %>%)
         </div>
         <% if (unrealPnl !== null) { %>
         <div class="tiny-dim <%= unrealPnl >= 0 ? 'text-buy' : 'text-sell' %>">
-          Chưa TH: <%= unrealPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealPnl)) %>
+          <%= unrealPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealPnl)) %> <%= t.unrealized_label %>
         </div>
         <% } %>
       </div>
@@ -143,14 +143,14 @@
     <table>
       <thead>
         <tr>
-          <th>MÃ</th>
-          <th class="num">KL</th>
-          <th class="num">KHẢ DỤNG</th>
-          <th class="num">GIÁ VỐN TB</th>
-          <th class="num">GIÁ TT</th>
-          <th class="num">VỐN ĐT</th>
-          <th class="num">GIÁ TRỊ TT</th>
-          <th class="num">LÃI/LỖ</th>
+          <th><%= t.col_ticker %></th>
+          <th class="num"><%= t.col_qty %></th>
+          <th class="num"><%= t.col_locked_qty %></th>
+          <th class="num"><%= t.col_avg_cost %></th>
+          <th class="num"><%= t.col_market %></th>
+          <th class="num"><%= t.col_cost_basis %></th>
+          <th class="num"><%= t.col_market_val %></th>
+          <th class="num"><%= t.col_pnl %></th>
           <th class="num">%</th>
         </tr>
       </thead>
@@ -167,7 +167,7 @@
           <td class="num">
             <%= h.available_quantity.toLocaleString('vi-VN') %>
             <% if (h.locked_quantity > 0) { %>
-              <span class="locked dim"> +<%= h.locked_quantity.toLocaleString('vi-VN') %>🔒</span>
+              <span class="dim"> +<%= h.locked_quantity.toLocaleString('vi-VN') %></span>
             <% } %>
           </td>
           <td class="num dim"><%= (h.avg_cost / 1000).toFixed(2) %></td>
@@ -196,7 +196,7 @@
   <% }) %>
 
   <% if (Object.keys(byUser).length === 0) { %>
-    <div class="empty-state">Chưa có ai nắm giữ cổ phiếu</div>
+    <div class="empty-state"><%= t.no_portfolios %></div>
   <% } %>
 
 </div>
@@ -204,7 +204,7 @@
 <script>
   document.getElementById('fetchForm').addEventListener('submit', function() {
     const btn = document.getElementById('fetchBtn');
-    btn.textContent = '↻ Đang fetch...';
+    btn.textContent = '<%= t.btn_fetching %>';
     btn.disabled = true;
   });
 </script>

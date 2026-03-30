@@ -1,42 +1,42 @@
-<%- include('partials/head', { title: 'Lệnh của tôi' }) %>
+<%- include('partials/head', { title: t.page_my_orders }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title">LỆNH CỦA TÔI</h1>
-    <a href="/orders/new" class="btn btn-primary">+ ĐẶT LỆNH MỚI</a>
+    <h1 class="page-title"><%= t.page_my_orders %></h1>
+    <a href="/orders/new" class="btn btn-primary"><%= t.btn_new_order %></a>
   </div>
 
   <div class="card">
     <% if (orders.length === 0) { %>
-      <div class="empty-state">Chưa có lệnh nào. <a href="/orders/new">Đặt lệnh đầu tiên</a></div>
+      <div class="empty-state"><%= t.no_orders %>. <a href="/orders/new"><%= t.no_holdings_link %></a></div>
     <% } else { %>
     <div class="table-wrap">
     <table>
       <thead>
         <tr>
           <th>#</th>
-          <th>LOẠI</th>
-          <th>MÃ</th>
-          <th class="num">SL</th>
-          <th class="num">GIÁ</th>
-          <th class="num">GIÁ TRỊ</th>
-          <th class="num">PHÍ</th>
-          <th class="num">THỰC TẾ</th>
-          <th>TRẠNG THÁI</th>
-          <th>T+2</th>
-          <th>THỜI GIAN</th>
-          <th>GHI CHÚ ADMIN</th>
+          <th><%= t.col_type %></th>
+          <th><%= t.col_ticker %></th>
+          <th class="num"><%= t.col_qty_short %></th>
+          <th class="num"><%= t.col_price %></th>
+          <th class="num"><%= t.col_value %></th>
+          <th class="num"><%= t.col_fee %></th>
+          <th class="num"><%= t.col_net %></th>
+          <th><%= t.col_status %></th>
+          <th><%= t.col_settlement %></th>
+          <th><%= t.col_time %></th>
+          <th><%= t.col_admin_note %></th>
         </tr>
       </thead>
       <tbody>
         <% orders.forEach(o => { %>
         <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
           <td class="dim">#<%= o.id %></td>
-          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
-          <td class="num"><%= (o.price / 1000).toFixed(2) %> <span class="dim">nghìn</span></td>
+          <td class="num"><%= (o.price / 1000).toFixed(2) %></td>
           <td class="num">₫<%= formatVND(o.total_value) %></td>
           <td class="num dim">₫<%= formatVND(o.fee) %></td>
           <td class="num">
@@ -48,7 +48,7 @@
           </td>
           <td>
             <span class="badge badge-<%= o.status %>">
-              <%= o.status === 'pending' ? '⏳ CHỜ DUYỆT' : o.status === 'approved' ? '✓ ĐÃ DUYỆT' : '✗ TỪ CHỐI' %>
+              <%= o.status === 'pending' ? t.status_pending : o.status === 'approved' ? t.status_approved : t.status_rejected %>
             </span>
           </td>
           <td class="dim small"><%= o.settlement_date || '—' %></td>

@@ -3,6 +3,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('./db');
+const locales = require('./locales');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -53,6 +54,9 @@ app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.user = null;
   res.locals.flash = { error: req.query.error || null, success: req.query.success || null };
+  const lang = req.session.lang || 'vi';
+  res.locals.lang = lang;
+  res.locals.t = locales[lang];
   if (req.session.userId) {
     const user = db.getUserById(req.session.userId);
     if (user) res.locals.user = user;
@@ -81,9 +85,10 @@ app.get('/login', (req, res) => {
 
 app.post('/login', (req, res) => {
   const { username, password } = req.body;
+  const t = locales[req.session.lang || 'vi'];
   const user = db.getUserByUsername(username?.trim());
   if (!user || !bcrypt.compareSync(password, user.password)) {
-    return res.render('login', { error: 'Sai tên đăng nhập hoặc mật khẩu' });
+    return res.render('login', { error: t.err_wrong_credentials });
   }
   req.session.userId = user.id;
   req.session.role = user.role;
@@ -97,11 +102,12 @@ app.get('/register', (req, res) => {
 
 app.post('/register', (req, res) => {
   const { username, password, confirmPassword } = req.body;
+  const t = locales[req.session.lang || 'vi'];
   const u = username?.trim();
-  if (!u || u.length < 3) return res.render('register', { error: 'Tên đăng nhập phải có ít nhất 3 ký tự' });
-  if (!password || password.length < 6) return res.render('register', { error: 'Mật khẩu phải có ít nhất 6 ký tự' });
-  if (password !== confirmPassword) return res.render('register', { error: 'Mật khẩu không khớp' });
-  if (db.getUserByUsername(u)) return res.render('register', { error: 'Tên đăng nhập đã tồn tại' });
+  if (!u || u.length < 3) return res.render('register', { error: t.err_username_short });
+  if (!password || password.length < 6) return res.render('register', { error: t.err_password_short });
+  if (password !== confirmPassword) return res.render('register', { error: t.err_password_mismatch });
+  if (db.getUserByUsername(u)) return res.render('register', { error: t.err_username_taken });
 
   const user = db.createUser(u, bcrypt.hashSync(password, 10));
   req.session.userId = user.id;
@@ -110,6 +116,11 @@ app.post('/register', (req, res) => {
 });
 
 app.get('/logout', (req, res) => { req.session.destroy(); res.redirect('/login'); });
+
+app.post('/lang', (req, res) => {
+  req.session.lang = (req.session.lang === 'en') ? 'vi' : 'en';
+  res.redirect(req.headers.referer || '/');
+});;
 
 // ─── Dashboard ────────────────────────────────────────────────────────────────
 
@@ -145,6 +156,7 @@ app.post('/orders', requireAuth, (req, res) => {
   const holdings = db.getHoldings(req.session.userId);
   const availableBalance = db.getAvailableBalance(req.session.userId);
   const { ticker, order_type, quantity, price } = req.body;
+  const t = locales[req.session.lang || 'vi'];
 
   const renderErr = (error) => res.render('new-order', {
     user, holdings, availableBalance, error, success: null,
@@ -152,15 +164,15 @@ app.post('/orders', requireAuth, (req, res) => {
   });
 
   const tickerClean = ticker?.trim().toUpperCase();
-  if (!tickerClean || tickerClean.length < 1 || tickerClean.length > 10) return renderErr('Mã cổ phiếu không hợp lệ (1–10 ký tự)');
-  if (!['buy', 'sell'].includes(order_type)) return renderErr('Loại lệnh không hợp lệ');
+  if (!tickerClean || tickerClean.length < 1 || tickerClean.length > 10) return renderErr(t.err_invalid_ticker);
+  if (!['buy', 'sell'].includes(order_type)) return renderErr(t.err_invalid_order_type);
 
   const qty  = parseInt(quantity);
-  const prcK = parseFloat(price);          // user input: thousands VND (e.g. 28.4)
-  const prc  = Math.round(prcK * 1000);   // store as actual VND (28,400)
-  if (!qty || qty <= 0 || !Number.isInteger(qty)) return renderErr('Số lượng phải là số nguyên dương');
-  if (qty % 100 !== 0) return renderErr('Số lượng phải là bội số của 100 (lô chuẩn)');
-  if (!prcK || prcK <= 0) return renderErr('Giá không hợp lệ');
+  const prcK = parseFloat(price);
+  const prc  = Math.round(prcK * 1000);
+  if (!qty || qty <= 0 || !Number.isInteger(qty)) return renderErr(t.err_invalid_qty);
+  if (qty % 100 !== 0) return renderErr(t.err_qty_lot);
+  if (!prcK || prcK <= 0) return renderErr(t.err_invalid_price);
 
   const totalValue = qty * prc;
   const fee = Math.round(totalValue * 0.001 * 100) / 100; // 0.1%
@@ -168,12 +180,12 @@ app.post('/orders', requireAuth, (req, res) => {
   if (order_type === 'buy') {
     const totalCost = totalValue + fee;
     if (availableBalance < totalCost) {
-      return renderErr(`Số dư khả dụng không đủ. Cần: ₫${formatVND(totalCost)}, Có: ₫${formatVND(availableBalance)}`);
+      return renderErr(t.err_insuf_balance(formatVND(totalCost), formatVND(availableBalance)));
     }
   } else {
     const avail = db.getAvailableQuantity(req.session.userId, tickerClean);
     if (avail < qty) {
-      return renderErr(`Không đủ cổ phiếu khả dụng. ${tickerClean} khả dụng: ${avail.toLocaleString('vi-VN')} cổ`);
+      return renderErr(t.err_insuf_shares(tickerClean, avail));
     }
   }
 
@@ -184,7 +196,7 @@ app.post('/orders', requireAuth, (req, res) => {
     holdings: db.getHoldings(req.session.userId),
     availableBalance: db.getAvailableBalance(req.session.userId),
     error: null,
-    success: `Lệnh ${order_type === 'buy' ? 'MUA' : 'BÁN'} ${tickerClean} đã được gửi thành công! Chờ admin xét duyệt.`,
+    success: t.success_order(order_type, tickerClean),
     prefill: { ticker: '', type: 'buy' },
   });
 });
