@@ -155,14 +155,15 @@ app.post('/orders', requireAuth, (req, res) => {
   if (!tickerClean || tickerClean.length < 1 || tickerClean.length > 10) return renderErr('Mã cổ phiếu không hợp lệ (1–10 ký tự)');
   if (!['buy', 'sell'].includes(order_type)) return renderErr('Loại lệnh không hợp lệ');
 
-  const qty = parseInt(quantity);
-  const prc = parseFloat(price);
+  const qty  = parseInt(quantity);
+  const prcK = parseFloat(price);          // user input: thousands VND (e.g. 28.4)
+  const prc  = Math.round(prcK * 1000);   // store as actual VND (28,400)
   if (!qty || qty <= 0 || !Number.isInteger(qty)) return renderErr('Số lượng phải là số nguyên dương');
   if (qty % 100 !== 0) return renderErr('Số lượng phải là bội số của 100 (lô chuẩn)');
-  if (!prc || prc <= 0) return renderErr('Giá không hợp lệ');
+  if (!prcK || prcK <= 0) return renderErr('Giá không hợp lệ');
 
   const totalValue = qty * prc;
-  const fee = Math.round(totalValue * 0.0001 * 100) / 100; // 0.01%
+  const fee = Math.round(totalValue * 0.001 * 100) / 100; // 0.1%
 
   if (order_type === 'buy') {
     const totalCost = totalValue + fee;
@@ -224,6 +225,25 @@ app.post('/admin/orders/:id/reject', requireAdmin, (req, res) => {
   } catch (err) {
     res.redirect('/admin?error=' + encodeURIComponent(err.message));
   }
+});
+
+// ─── Admin Portfolio ──────────────────────────────────────────────────────────
+
+app.get('/admin/portfolio', requireAdmin, (req, res) => {
+  const tickers = db.getHeldTickers();
+  const portfolios = db.getAllPortfolios();
+  res.render('admin-portfolio', { tickers, portfolios });
+});
+
+app.post('/admin/prices', requireAdmin, (req, res) => {
+  const { prices } = req.body; // prices = { VCB: '28.4', MBB: '25.75', ... }
+  if (prices && typeof prices === 'object') {
+    for (const [ticker, val] of Object.entries(prices)) {
+      const p = parseFloat(val);
+      if (ticker && p > 0) db.upsertMarketPrice(ticker.toUpperCase(), Math.round(p * 1000));
+    }
+  }
+  res.redirect('/admin/portfolio?success=Đã cập nhật giá thị trường');
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

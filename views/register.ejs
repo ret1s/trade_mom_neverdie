@@ -1,5 +1,8 @@
 <%- include('partials/head', { title: 'Đăng ký' }) %>
 
+<button id="themeToggle" class="theme-toggle" style="position:fixed;top:12px;right:16px;" title="Toggle light/dark">◐</button>
+<script>document.getElementById('themeToggle').addEventListener('click',function(){var l=document.documentElement.classList.toggle('light');localStorage.setItem('theme',l?'light':'dark');});</script>
+
 <div class="auth-container">
   <div class="auth-box">
     <div class="auth-logo">

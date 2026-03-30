@@ -1,0 +1,8 @@
+node_modules/
+trade_mom.db
+trade_mom.db-shm
+trade_mom.db-wal
+*.db
+*.db-shm
+*.db-wal
+.env

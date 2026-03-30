@@ -1,0 +1,177 @@
+<%- include('partials/head', { title: 'Portfolio' }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title">PORTFOLIO</h1>
+    <span class="dim small">Danh mục toàn bộ người chơi</span>
+  </div>
+
+  <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
+  <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
+
+  <!-- ─── Price Editor ─────────────────────────────────────────────────────── -->
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title">CẬP NHẬT GIÁ THỊ TRƯỜNG</div>
+      <span class="dim small">Nhập theo nghìn đồng (28.4 = 28,400₫)</span>
+    </div>
+
+    <form method="POST" action="/admin/prices" id="priceForm">
+      <div class="price-grid">
+        <% tickers.forEach(t => { %>
+        <div class="price-row">
+          <div class="price-ticker">
+            <span class="ticker"><%= t.ticker %></span>
+            <span class="dim small"><%= t.holder_count %> người — <%= t.total_qty.toLocaleString('vi-VN') %> cổ</span>
+          </div>
+          <div class="price-inputs">
+            <div class="price-cost-ref">
+              vốn TB: <span class="dim"><%= (t.avg_cost_all / 1000).toFixed(2) %></span>
+            </div>
+            <input
+              type="number"
+              name="prices[<%= t.ticker %>]"
+              step="0.01"
+              min="0.01"
+              placeholder="<%= t.market_price ? (t.market_price / 1000).toFixed(2) : 'giá...' %>"
+              value="<%= t.market_price ? (t.market_price / 1000).toFixed(2) : '' %>"
+              class="price-input"
+            >
+            <% if (t.market_price) { %>
+              <%
+                const chg = ((t.market_price - t.avg_cost_all) / t.avg_cost_all * 100).toFixed(2);
+                const isPos = parseFloat(chg) >= 0;
+              %>
+              <span class="<%= isPos ? 'text-buy' : 'text-sell' %> small">
+                <%= isPos ? '+' : '' %><%= chg %>%
+              </span>
+            <% } %>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+
+      <% if (tickers.length === 0) { %>
+        <div class="empty-state">Không có cổ phiếu nào đang được nắm giữ</div>
+      <% } else { %>
+        <div style="margin-top:20px;display:flex;align-items:center;gap:16px">
+          <button type="submit" class="btn btn-primary">LƯU GIÁ</button>
+          <% const lastUpdate = tickers.find(t => t.price_updated_at); %>
+          <% if (lastUpdate) { %>
+            <span class="dim small">Cập nhật lần cuối: <%= formatDate(lastUpdate.price_updated_at) %></span>
+          <% } %>
+        </div>
+      <% } %>
+    </form>
+  </div>
+
+  <!-- ─── Per-User Portfolio ───────────────────────────────────────────────── -->
+  <%
+    // Group portfolios by user
+    const byUser = {};
+    portfolios.forEach(row => {
+      const key = row.user_id;
+      if (!byUser[key]) byUser[key] = { username: row.username, display_name: row.display_name, balance: row.balance, holdings: [] };
+      byUser[key].holdings.push(row);
+    });
+
+    const STARTING = 1000000000;
+  %>
+
+  <% Object.values(byUser).forEach(u => { %>
+  <%
+    let costTotal = 0, marketTotal = 0, hasAllPrices = true;
+    u.holdings.forEach(h => {
+      costTotal += h.cost_basis;
+      if (h.market_price) marketTotal += h.market_price * h.total_quantity;
+      else { hasAllPrices = false; marketTotal += h.cost_basis; }
+    });
+    const totalAssets = u.balance + (hasAllPrices ? marketTotal : costTotal);
+    const unrealizedPnl = hasAllPrices ? marketTotal - costTotal : null;
+    const totalPnl = totalAssets - STARTING;
+  %>
+  <div class="card user-portfolio-card">
+    <div class="user-portfolio-header">
+      <div>
+        <div class="bold" style="font-size:15px"><%= u.display_name || u.username %></div>
+        <div class="dim small">Số dư: ₫<%= formatVND(u.balance) %></div>
+      </div>
+      <div style="text-align:right">
+        <div class="bold" style="font-size:15px">₫<%= formatVND(totalAssets) %></div>
+        <div class="small <%= totalPnl >= 0 ? 'text-buy' : 'text-sell' %>">
+          Tổng P&L: <%= totalPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(totalPnl)) %>
+          (<%= (totalPnl / STARTING * 100).toFixed(2) %>%)
+        </div>
+        <% if (unrealizedPnl !== null) { %>
+        <div class="small <%= unrealizedPnl >= 0 ? 'text-buy' : 'text-sell' %> dim">
+          Lãi/lỗ chưa thực hiện: <%= unrealizedPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealizedPnl)) %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>MÃ</th>
+          <th class="num">KL</th>
+          <th class="num">KHẢ DỤNG</th>
+          <th class="num">GIÁ VỐN TB</th>
+          <th class="num">VỐN ĐẦU TƯ</th>
+          <th class="num">GIÁ TT</th>
+          <th class="num">GIÁ TRỊ TT</th>
+          <th class="num">LÃI/LỖ</th>
+          <th class="num">%</th>
+        </tr>
+      </thead>
+      <tbody>
+        <% u.holdings.forEach(h => { %>
+        <%
+          const marketVal = h.market_price ? h.market_price * h.total_quantity : null;
+          const pnl = marketVal !== null ? marketVal - h.cost_basis : null;
+          const pnlPct = pnl !== null ? (pnl / h.cost_basis * 100).toFixed(2) : null;
+        %>
+        <tr>
+          <td><span class="ticker"><%= h.ticker %></span></td>
+          <td class="num"><%= h.total_quantity.toLocaleString('vi-VN') %></td>
+          <td class="num">
+            <%= h.available_quantity.toLocaleString('vi-VN') %>
+            <% if (h.locked_quantity > 0) { %>
+              <span class="locked dim"> +<%= h.locked_quantity.toLocaleString('vi-VN') %>🔒</span>
+            <% } %>
+          </td>
+          <td class="num"><%= (h.avg_cost / 1000).toFixed(2) %> <span class="dim">n</span></td>
+          <td class="num">₫<%= formatVND(h.cost_basis) %></td>
+          <td class="num">
+            <% if (h.market_price) { %>
+              <span class="bold"><%= (h.market_price / 1000).toFixed(2) %></span> <span class="dim">n</span>
+            <% } else { %>
+              <span class="dim">—</span>
+            <% } %>
+          </td>
+          <td class="num">
+            <% if (marketVal !== null) { %>₫<%= formatVND(marketVal) %><% } else { %><span class="dim">—</span><% } %>
+          </td>
+          <td class="num <%= pnl !== null ? (pnl >= 0 ? 'text-buy' : 'text-sell') : '' %>">
+            <% if (pnl !== null) { %><%= pnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnl)) %><% } else { %><span class="dim">—</span><% } %>
+          </td>
+          <td class="num <%= pnlPct !== null ? (parseFloat(pnlPct) >= 0 ? 'text-buy' : 'text-sell') : '' %>">
+            <% if (pnlPct !== null) { %><%= pnl >= 0 ? '+' : '' %><%= pnlPct %>%<% } else { %><span class="dim">—</span><% } %>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+  </div>
+  <% }) %>
+
+  <% if (Object.keys(byUser).length === 0) { %>
+    <div class="empty-state">Chưa có ai nắm giữ cổ phiếu</div>
+  <% } %>
+
+</div>
+
+<%- include('partials/foot') %>

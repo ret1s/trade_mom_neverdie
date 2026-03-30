@@ -36,7 +36,7 @@
           <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
-          <td class="num">₫<%= formatVND(o.price) %></td>
+          <td class="num"><%= (o.price / 1000).toFixed(2) %> <span class="dim">nghìn</span></td>
           <td class="num">₫<%= formatVND(o.total_value) %></td>
           <td class="num dim">₫<%= formatVND(o.fee) %></td>
           <td class="num">

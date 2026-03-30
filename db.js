@@ -14,6 +14,7 @@ function initDB() {
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
+      display_name TEXT,
       balance REAL NOT NULL DEFAULT 1000000000,
       role TEXT NOT NULL DEFAULT 'user',
       created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
@@ -48,6 +49,12 @@ function initDB() {
       FOREIGN KEY (user_id) REFERENCES users(id),
       FOREIGN KEY (order_id) REFERENCES orders(id)
     );
+
+    CREATE TABLE IF NOT EXISTS market_prices (
+      ticker TEXT PRIMARY KEY,
+      price REAL NOT NULL,
+      updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
   `);
 
   // Seed admin if not exists
@@ -74,9 +81,14 @@ function createUser(username, password) {
   return getUserById(r.lastInsertRowid);
 }
 
+function createUserWithDisplayName(username, password, displayName) {
+  const r = db.prepare('INSERT INTO users (username, password, display_name) VALUES (?, ?, ?)').run(username, password, displayName);
+  return getUserById(r.lastInsertRowid);
+}
+
 function getAllUsers() {
   return db.prepare(`
-    SELECT u.id, u.username, u.balance, u.role, u.created_at,
+    SELECT u.id, u.username, u.display_name, u.balance, u.role, u.created_at,
       COALESCE((SELECT SUM(remaining_quantity * cost_price) FROM holdings_lots h WHERE h.user_id = u.id AND h.remaining_quantity > 0), 0) as holdings_value,
       COALESCE((SELECT SUM(total_value + fee) FROM orders o WHERE o.user_id = u.id AND o.order_type = 'buy' AND o.status = 'pending'), 0) as pending_buy_cost
     FROM users u
@@ -102,16 +114,19 @@ function getHoldings(userId) {
   const today = new Date().toISOString().split('T')[0];
   return db.prepare(`
     SELECT
-      ticker,
-      SUM(remaining_quantity) as total_quantity,
-      SUM(CASE WHEN settlement_date <= ? THEN remaining_quantity ELSE 0 END) as available_quantity,
-      SUM(CASE WHEN settlement_date > ? THEN remaining_quantity ELSE 0 END) as locked_quantity,
-      CAST(SUM(remaining_quantity * cost_price) AS REAL) / SUM(remaining_quantity) as avg_cost,
-      MIN(CASE WHEN settlement_date > ? THEN settlement_date END) as next_settlement
-    FROM holdings_lots
-    WHERE user_id = ? AND remaining_quantity > 0
-    GROUP BY ticker
-    ORDER BY ticker
+      hl.ticker,
+      SUM(hl.remaining_quantity) as total_quantity,
+      SUM(CASE WHEN hl.settlement_date <= ? THEN hl.remaining_quantity ELSE 0 END) as available_quantity,
+      SUM(CASE WHEN hl.settlement_date > ? THEN hl.remaining_quantity ELSE 0 END) as locked_quantity,
+      CAST(SUM(hl.remaining_quantity * hl.cost_price) AS REAL) / SUM(hl.remaining_quantity) as avg_cost,
+      MIN(CASE WHEN hl.settlement_date > ? THEN hl.settlement_date END) as next_settlement,
+      mp.price as market_price,
+      mp.updated_at as price_updated_at
+    FROM holdings_lots hl
+    LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+    WHERE hl.user_id = ? AND hl.remaining_quantity > 0
+    GROUP BY hl.ticker
+    ORDER BY hl.ticker
   `).all(today, today, today, userId);
 }
 
@@ -218,11 +233,69 @@ function rejectOrder(orderId, note) {
   db.prepare('UPDATE orders SET status = ?, admin_note = ?, processed_at = ? WHERE id = ?').run('rejected', note, now, orderId);
 }
 
+// ─── Market Prices ────────────────────────────────────────────────────────────
+
+function getMarketPrices() {
+  return db.prepare('SELECT * FROM market_prices ORDER BY ticker').all();
+}
+
+function upsertMarketPrice(ticker, price) {
+  db.prepare(`
+    INSERT INTO market_prices (ticker, price, updated_at) VALUES (?, ?, datetime('now','localtime'))
+    ON CONFLICT(ticker) DO UPDATE SET price = excluded.price, updated_at = excluded.updated_at
+  `).run(ticker, price);
+}
+
+// All unique tickers currently held (with holder count + avg cost across all users)
+function getHeldTickers() {
+  return db.prepare(`
+    SELECT
+      hl.ticker,
+      COUNT(DISTINCT hl.user_id) as holder_count,
+      CAST(SUM(hl.remaining_quantity * hl.cost_price) AS REAL) / SUM(hl.remaining_quantity) as avg_cost_all,
+      SUM(hl.remaining_quantity) as total_qty,
+      mp.price as market_price,
+      mp.updated_at as price_updated_at
+    FROM holdings_lots hl
+    LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+    WHERE hl.remaining_quantity > 0
+    GROUP BY hl.ticker
+    ORDER BY hl.ticker
+  `).all();
+}
+
+// Portfolio for all users (grouped by user then ticker), with market price
+function getAllPortfolios() {
+  const today = new Date().toISOString().split('T')[0];
+  return db.prepare(`
+    SELECT
+      u.id as user_id,
+      u.username,
+      u.display_name,
+      u.balance,
+      hl.ticker,
+      SUM(hl.remaining_quantity) as total_quantity,
+      SUM(CASE WHEN hl.settlement_date <= ? THEN hl.remaining_quantity ELSE 0 END) as available_quantity,
+      SUM(CASE WHEN hl.settlement_date > ? THEN hl.remaining_quantity ELSE 0 END) as locked_quantity,
+      CAST(SUM(hl.remaining_quantity * hl.cost_price) AS REAL) / SUM(hl.remaining_quantity) as avg_cost,
+      SUM(hl.remaining_quantity * hl.cost_price) as cost_basis,
+      mp.price as market_price,
+      mp.updated_at as price_updated_at
+    FROM holdings_lots hl
+    JOIN users u ON hl.user_id = u.id
+    LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+    WHERE hl.remaining_quantity > 0
+    GROUP BY hl.user_id, hl.ticker
+    ORDER BY u.display_name, hl.ticker
+  `).all(today, today);
+}
+
 module.exports = {
   initDB,
-  getUserByUsername, getUserById, createUser, getAllUsers,
+  getUserByUsername, getUserById, createUser, createUserWithDisplayName, getAllUsers,
   getAvailableBalance,
   getHoldings, getAvailableQuantity,
   getUserOrders, createOrder, getPendingOrders, getAllOrdersAdmin, getOrderById,
   approveOrder, rejectOrder,
+  getMarketPrices, upsertMarketPrice, getHeldTickers, getAllPortfolios,
 };

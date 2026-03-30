@@ -45,7 +45,7 @@
             <% } %>
           </td>
           <td>
-            <strong><%= u.username %></strong>
+            <strong><%= u.display_name || u.username %></strong>
             <% if (i === 0) { %> 👑<% } %>
           </td>
           <td class="num">₫<%= formatVND(u.balance) %></td>

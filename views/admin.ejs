@@ -31,7 +31,7 @@
             <span class="badge-type badge-<%= o.order_type %> big"><%= o.order_type === 'buy' ? '▲ MUA' : '▼ BÁN' %></span>
             <span class="ticker big"><%= o.ticker %></span>
             <span class="bold">@</span>
-            <span>₫<%= formatVND(o.price) %>/cổ</span>
+            <span><%= (o.price / 1000).toFixed(2) %> nghìn/cổ</span>
           </div>
           <div class="dim small"><%= formatDate(o.created_at) %></div>
         </div>
@@ -146,7 +146,7 @@
           <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? 'MUA' : 'BÁN' %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
-          <td class="num">₫<%= formatVND(o.price) %></td>
+          <td class="num"><%= (o.price / 1000).toFixed(2) %> <span class="dim">n</span></td>
           <td class="num">₫<%= formatVND(o.total_value) %></td>
           <td><span class="badge badge-<%= o.status %>"><%= o.status === 'pending' ? '⏳ CHỜ' : o.status === 'approved' ? '✓ DUYỆT' : '✗ TỪ CHỐI' %></span></td>
           <td class="dim small"><%= formatDate(o.created_at) %></td>
