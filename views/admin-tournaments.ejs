@@ -1,0 +1,122 @@
+<%- include('partials/head', { title: t.admin_tournaments }) %>
+<%- include('partials/nav') %>
+
+<div class="container">
+  <div class="page-header">
+    <h1 class="page-title"><%= t.admin_tournaments %></h1>
+  </div>
+
+  <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
+  <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
+
+  <!-- Create tournament -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:14px"><%= t.btn_new_tournament %></div>
+    <form method="POST" action="/admin/tournaments" style="display:flex;gap:10px;align-items:flex-end">
+      <div class="form-group" style="margin:0;flex:1">
+        <label><%= t.label_tournament_name %></label>
+        <input type="text" name="name" required placeholder="e.g. Spring 2026">
+      </div>
+      <button type="submit" class="btn btn-primary"><%= t.btn_create_tournament %></button>
+    </form>
+  </div>
+
+  <!-- Assign users -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px"><%= t.assign_tournament %></div>
+    <% if (tournaments.length === 0) { %>
+      <div class="empty-state"><%= t.no_tournaments %></div>
+    <% } else { %>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><%= t.col_player %></th>
+          <th><%= t.col_tournament %></th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% users.forEach(u => { %>
+        <tr>
+          <td>
+            <strong><%= u.display_name || u.username %></strong>
+            <span class="dim small"> · #<%= u.id %></span>
+          </td>
+          <td>
+            <% if (u.tournament_name) { %>
+              <span class="bold"><%= u.tournament_name %></span>
+            <% } else { %>
+              <span class="dim">—</span>
+            <% } %>
+          </td>
+          <td>
+            <form method="POST" action="/admin/users/<%= u.id %>/tournament" style="display:flex;gap:8px;align-items:center">
+              <select name="tournament_id" style="background:var(--bg);border:1px solid var(--border2);color:var(--text);padding:5px 8px;font-family:var(--font);font-size:12px;outline:none">
+                <option value="">— none —</option>
+                <% tournaments.forEach(t_ => { %>
+                <option value="<%= t_.id %>" <%= u.tournament_id === t_.id ? 'selected' : '' %>><%= t_.name %></option>
+                <% }) %>
+              </select>
+              <button type="submit" class="btn btn-sm"><%= t.assign_tournament %></button>
+            </form>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Tournament overview -->
+  <% tournaments.forEach(t_ => { %>
+  <%
+    const members = users.filter(u => u.tournament_id === t_.id);
+    const STARTING = 1000000000;
+  %>
+  <div class="card">
+    <div class="section-header">
+      <div class="section-title"><%= t_.name %></div>
+      <span class="dim small"><%= members.length %> <%= lang === 'vi' ? 'người chơi' : 'players' %></span>
+    </div>
+    <% if (members.length === 0) { %>
+      <div class="empty-state" style="padding:16px"><%= t.no_players %></div>
+    <% } else { %>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th><%= t.col_rank %></th>
+          <th><%= t.col_player %></th>
+          <th class="num"><%= t.col_balance %></th>
+          <th class="num"><%= t.col_total %></th>
+          <th class="num"><%= t.col_pnl_vs_start %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% members.forEach((u, i) => { %>
+        <% const totalAssets = u.balance + u.holdings_value; const pnl = totalAssets - STARTING; %>
+        <tr>
+          <td><span class="<%= i === 0 ? 'rank-1' : i === 1 ? 'rank-2' : i === 2 ? 'rank-3' : 'dim' %>">#<%= i + 1 %></span></td>
+          <td><strong><%= u.display_name || u.username %></strong></td>
+          <td class="num">₫<%= formatVND(u.balance) %></td>
+          <td class="num"><strong>₫<%= formatVND(totalAssets) %></strong></td>
+          <td class="num">
+            <span class="<%= pnl >= 0 ? 'text-buy' : 'text-sell' %>">
+              <%= pnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnl)) %>
+              (<%= (pnl / STARTING * 100).toFixed(2) %>%)
+            </span>
+          </td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
+    </div>
+    <% } %>
+  </div>
+  <% }) %>
+
+</div>
+
+<%- include('partials/foot') %>

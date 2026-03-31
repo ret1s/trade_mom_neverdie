@@ -10,6 +10,12 @@ function initDB() {
   db.pragma('journal_mode = WAL');
 
   db.exec(`
+    CREATE TABLE IF NOT EXISTS tournaments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT UNIQUE NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
+    );
+
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       username TEXT UNIQUE NOT NULL,
@@ -55,7 +61,19 @@ function initDB() {
       price REAL NOT NULL,
       updated_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime'))
     );
+
+    CREATE TABLE IF NOT EXISTS nav_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      total_assets REAL NOT NULL,
+      recorded_at TEXT NOT NULL DEFAULT (datetime('now', 'localtime')),
+      note TEXT DEFAULT '',
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    );
   `);
+
+  // Migrate: add tournament_id to users if not exists
+  try { db.exec('ALTER TABLE users ADD COLUMN tournament_id INTEGER REFERENCES tournaments(id)'); } catch(e) {}
 
   // Seed admin if not exists
   const admin = db.prepare('SELECT id FROM users WHERE username = ?').get('admin');
@@ -86,27 +104,88 @@ function createUserWithDisplayName(username, password, displayName) {
   return getUserById(r.lastInsertRowid);
 }
 
-function getAllUsers() {
-  return db.prepare(`
-    SELECT u.id, u.username, u.display_name, u.balance, u.role, u.created_at,
-      COALESCE((
-        SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
-        FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
-        WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
-      ), 0) as holdings_value,
-      COALESCE((
-        SELECT SUM(hl.remaining_quantity * hl.cost_price)
-        FROM holdings_lots hl WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
-      ), 0) as holdings_cost,
-      COALESCE((SELECT SUM(total_value + fee) FROM orders o WHERE o.user_id = u.id AND o.order_type = 'buy' AND o.status = 'pending'), 0) as pending_buy_cost
-    FROM users u
-    WHERE u.role != 'admin'
-    ORDER BY (u.balance + COALESCE((
+const USER_SELECT = `
+  SELECT u.id, u.username, u.display_name, u.balance, u.role, u.created_at, u.tournament_id,
+    t.name as tournament_name,
+    COALESCE((
       SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
       FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
       WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
-    ), 0)) DESC
-  `).all();
+    ), 0) as holdings_value,
+    COALESCE((
+      SELECT SUM(hl.remaining_quantity * hl.cost_price)
+      FROM holdings_lots hl WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
+    ), 0) as holdings_cost,
+    COALESCE((SELECT SUM(total_value + fee) FROM orders o WHERE o.user_id = u.id AND o.order_type = 'buy' AND o.status = 'pending'), 0) as pending_buy_cost
+  FROM users u
+  LEFT JOIN tournaments t ON t.id = u.tournament_id
+`;
+
+const ORDER_BY_NAV = `
+  ORDER BY (u.balance + COALESCE((
+    SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
+    FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+    WHERE hl.user_id = u.id AND hl.remaining_quantity > 0
+  ), 0)) DESC
+`;
+
+function getAllUsers() {
+  return db.prepare(`${USER_SELECT} WHERE u.role != 'admin' ${ORDER_BY_NAV}`).all();
+}
+
+function getUsersByTournament(tournamentId) {
+  return db.prepare(`${USER_SELECT} WHERE u.role != 'admin' AND u.tournament_id = ? ${ORDER_BY_NAV}`).all(tournamentId);
+}
+
+// ─── Tournaments ──────────────────────────────────────────────────────────────
+
+function getAllTournaments() {
+  return db.prepare('SELECT * FROM tournaments ORDER BY id').all();
+}
+
+function getTournamentById(id) {
+  return db.prepare('SELECT * FROM tournaments WHERE id = ?').get(id);
+}
+
+function createTournament(name) {
+  const r = db.prepare('INSERT INTO tournaments (name) VALUES (?)').run(name);
+  return getTournamentById(r.lastInsertRowid);
+}
+
+function setUserTournament(userId, tournamentId) {
+  db.prepare('UPDATE users SET tournament_id = ? WHERE id = ?').run(tournamentId, userId);
+}
+
+// ─── NAV History ──────────────────────────────────────────────────────────────
+
+function getUserNAV(userId) {
+  const user = getUserById(userId);
+  const r = db.prepare(`
+    SELECT COALESCE((
+      SELECT SUM(hl.remaining_quantity * COALESCE(mp.price, hl.cost_price))
+      FROM holdings_lots hl LEFT JOIN market_prices mp ON mp.ticker = hl.ticker
+      WHERE hl.user_id = ? AND hl.remaining_quantity > 0
+    ), 0) as holdings_value
+  `).get(userId);
+  return user.balance + r.holdings_value;
+}
+
+function recordNAV(userId, note = '') {
+  const totalAssets = getUserNAV(userId);
+  db.prepare('INSERT INTO nav_history (user_id, total_assets, note) VALUES (?, ?, ?)').run(userId, totalAssets, note);
+  return totalAssets;
+}
+
+function getNAVHistory(userId, limit = 50) {
+  return db.prepare('SELECT * FROM nav_history WHERE user_id = ? ORDER BY recorded_at DESC LIMIT ?').all(userId, limit);
+}
+
+// ─── Public Profile ───────────────────────────────────────────────────────────
+
+function getUserPublicProfile(username) {
+  return db.prepare(`
+    ${USER_SELECT} WHERE u.username = ? AND u.role != 'admin'
+  `).get(username);
 }
 
 // ─── Balance ──────────────────────────────────────────────────────────────────
@@ -305,9 +384,12 @@ function getAllPortfolios() {
 module.exports = {
   initDB,
   getUserByUsername, getUserById, createUser, createUserWithDisplayName, getAllUsers,
+  getUsersByTournament, getUserPublicProfile,
   getAvailableBalance,
   getHoldings, getAvailableQuantity,
   getUserOrders, createOrder, getPendingOrders, getAllOrdersAdmin, getOrderById,
   approveOrder, rejectOrder,
   getMarketPrices, upsertMarketPrice, getHeldTickers, getAllPortfolios,
+  getAllTournaments, getTournamentById, createTournament, setUserTournament,
+  recordNAV, getNAVHistory,
 };

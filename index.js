@@ -204,8 +204,37 @@ app.post('/orders', requireAuth, (req, res) => {
 // ─── Leaderboard ─────────────────────────────────────────────────────────────
 
 app.get('/leaderboard', requireAuth, (req, res) => {
-  const users = db.getAllUsers();
-  res.render('leaderboard', { users });
+  const user = db.getUserById(req.session.userId);
+  if (!user.tournament_id) {
+    return res.render('leaderboard', { users: [], tournament: null });
+  }
+  const tournament = db.getTournamentById(user.tournament_id);
+  const users = db.getUsersByTournament(user.tournament_id);
+  res.render('leaderboard', { users, tournament });
+});
+
+// ─── Public Profile ───────────────────────────────────────────────────────────
+
+app.get('/player/:username', requireAuth, (req, res) => {
+  const viewer = db.getUserById(req.session.userId);
+  const profile = db.getUserPublicProfile(req.params.username);
+  if (!profile) return res.redirect('/leaderboard');
+
+  // Only same tournament can view
+  if (!viewer.tournament_id || viewer.tournament_id !== profile.tournament_id) {
+    return res.redirect('/leaderboard');
+  }
+
+  const holdings = db.getHoldings(profile.id);
+  const orders = db.getUserOrders(profile.id);
+  const navHistory = db.getNAVHistory(profile.id, 30);
+  res.render('profile', { profile, holdings, orders, navHistory });
+});
+
+app.post('/nav/record', requireAuth, (req, res) => {
+  const note = req.body.note?.trim() || '';
+  db.recordNAV(req.session.userId, note);
+  res.redirect('/dashboard?success=' + encodeURIComponent(locales[req.session.lang || 'vi'].nav_recorded));
 });
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -237,6 +266,33 @@ app.post('/admin/orders/:id/reject', requireAdmin, (req, res) => {
   } catch (err) {
     res.redirect('/admin?error=' + encodeURIComponent(err.message));
   }
+});
+
+// ─── Admin Tournaments ────────────────────────────────────────────────────────
+
+app.get('/admin/tournaments', requireAdmin, (req, res) => {
+  const tournaments = db.getAllTournaments();
+  const users = db.getAllUsers();
+  res.render('admin-tournaments', { tournaments, users });
+});
+
+app.post('/admin/tournaments', requireAdmin, (req, res) => {
+  const t = locales[req.session.lang || 'vi'];
+  const name = req.body.name?.trim();
+  if (!name) return res.redirect('/admin/tournaments?error=' + encodeURIComponent(t.err_tournament_name));
+  try {
+    db.createTournament(name);
+    res.redirect('/admin/tournaments?success=' + encodeURIComponent(name));
+  } catch {
+    res.redirect('/admin/tournaments?error=' + encodeURIComponent(t.err_tournament_exists));
+  }
+});
+
+app.post('/admin/users/:id/tournament', requireAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const tournamentId = req.body.tournament_id ? parseInt(req.body.tournament_id) : null;
+  db.setUserTournament(userId, tournamentId);
+  res.redirect('/admin/tournaments');
 });
 
 // ─── Admin Portfolio ──────────────────────────────────────────────────────────

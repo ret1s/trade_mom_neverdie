@@ -5,6 +5,7 @@
       <% if (user.role === 'admin') { %>
         <a href="/admin" class="<%= currentPath === '/admin' ? 'active' : '' %>"><%= t.nav_admin_orders %></a>
         <a href="/admin/portfolio" class="<%= currentPath === '/admin/portfolio' ? 'active' : '' %>"><%= t.nav_portfolio %></a>
+        <a href="/admin/tournaments" class="<%= currentPath === '/admin/tournaments' ? 'active' : '' %>"><%= t.admin_tournaments %></a>
       <% } else { %>
         <a href="/dashboard" class="<%= currentPath === '/dashboard' ? 'active' : '' %>"><%= t.nav_dashboard %></a>
         <a href="/orders/new" class="<%= currentPath === '/orders/new' ? 'active' : '' %>"><%= t.nav_new_order %></a>

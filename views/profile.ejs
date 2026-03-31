@@ -1,40 +1,42 @@
-<%- include('partials/head', { title: t.page_dashboard }) %>
+<%- include('partials/head', { title: t.page_profile(profile.display_name || profile.username) }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
-
-  <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
-  <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
-
-  <div class="page-header">
-    <h1 class="page-title"><%= t.page_dashboard %></h1>
-    <div style="display:flex;gap:8px">
-      <form method="POST" action="/nav/record">
-        <input type="hidden" name="note" value="">
-        <button type="submit" class="btn" style="border-color:var(--border2);color:var(--text-dim)"><%= t.btn_record_nav %></button>
-      </form>
-      <a href="/orders/new" class="btn btn-primary"><%= t.btn_new_order %></a>
-    </div>
-  </div>
-
   <%
     let marketHoldingsValue = 0;
     let hasMarketPrices = false;
+    let holdingsCost = 0;
     holdings.forEach(h => {
+      const costBasis = h.avg_cost * h.total_quantity;
+      holdingsCost += costBasis;
       if (h.market_price) {
         marketHoldingsValue += h.market_price * h.total_quantity;
         hasMarketPrices = true;
       } else {
-        marketHoldingsValue += h.avg_cost * h.total_quantity;
+        marketHoldingsValue += costBasis;
       }
     });
-    const unrealizedPnl = hasMarketPrices ? marketHoldingsValue - holdingsValue : null;
-    const totalAssets = availableBalance + marketHoldingsValue;
+    const unrealizedPnl = hasMarketPrices ? marketHoldingsValue - holdingsCost : null;
+    const totalAssets = profile.balance + marketHoldingsValue;
+    const pnlVsStart = totalAssets - 1000000000;
+    const STARTING = 1000000000;
   %>
+
+  <div class="page-header">
+    <div>
+      <h1 class="page-title"><%= profile.display_name || profile.username %></h1>
+      <% if (profile.tournament_name) { %>
+        <span class="dim small"><%= t.tournament_label %>: <%= profile.tournament_name %></span>
+      <% } %>
+    </div>
+    <a href="/leaderboard" class="dim small-link">&larr; <%= t.page_leaderboard %></a>
+  </div>
+
+  <!-- Stats -->
   <div class="stats-bar">
     <div class="stat-card">
       <div class="stat-label"><%= t.stat_avail_balance %></div>
-      <div class="stat-value">₫<%= formatVND(availableBalance) %></div>
+      <div class="stat-value">₫<%= formatVND(profile.balance) %></div>
     </div>
     <div class="stat-card">
       <div class="stat-label"><%= t.stat_portfolio %></div>
@@ -51,23 +53,23 @@
     </div>
     <div class="stat-card">
       <div class="stat-label"><%= t.stat_pnl %></div>
-      <% const pnlVsStart = totalAssets - 1000000000; %>
       <div class="stat-value <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
         <%= pnlVsStart >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnlVsStart)) %>
       </div>
       <div class="stat-note <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
-        <%= (pnlVsStart / 1000000000 * 100).toFixed(2) %>%
+        <%= (pnlVsStart / STARTING * 100).toFixed(2) %>%
       </div>
     </div>
   </div>
 
+  <!-- Holdings -->
   <div class="card">
     <div class="section-header">
       <div class="section-title"><%= t.holdings_title %></div>
       <span class="dim"><%= holdings.length %></span>
     </div>
     <% if (holdings.length === 0) { %>
-      <div class="empty-state"><%= t.no_holdings %> <a href="/orders/new"><%= t.no_holdings_link %></a></div>
+      <div class="empty-state"><%= t.no_holdings %></div>
     <% } else { %>
     <div class="table-wrap">
     <table>
@@ -81,7 +83,6 @@
           <th class="num"><%= t.col_invested %></th>
           <th class="num"><%= t.col_market_val %></th>
           <th class="num"><%= t.col_pnl %></th>
-          <th></th>
         </tr>
       </thead>
       <tbody>
@@ -107,9 +108,7 @@
           <td class="num">
             <% if (h.market_price) { %>
               <span class="bold <%= pnl >= 0 ? 'text-buy' : 'text-sell' %>"><%= (h.market_price / 1000).toFixed(2) %></span>
-            <% } else { %>
-              <span class="dim">—</span>
-            <% } %>
+            <% } else { %><span class="dim">—</span><% } %>
           </td>
           <td class="num dim">₫<%= formatVND(costBasis) %></td>
           <td class="num">
@@ -123,14 +122,7 @@
               <div class="tiny-dim <%= pnl >= 0 ? 'text-buy' : 'text-sell' %>">
                 <%= pnl >= 0 ? '+' : '' %><%= pnlPct %>%
               </div>
-            <% } else { %>
-              <span class="dim">—</span>
-            <% } %>
-          </td>
-          <td>
-            <% if (h.available_quantity > 0) { %>
-            <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" class="btn btn-sm btn-sell"><%= t.btn_sell %></a>
-            <% } %>
+            <% } else { %><span class="dim">—</span><% } %>
           </td>
         </tr>
         <% }) %>
@@ -140,12 +132,47 @@
     <% } %>
   </div>
 
+  <!-- NAV History -->
   <div class="card">
-    <div class="section-header">
-      <div class="section-title"><%= t.recent_orders %></div>
-      <a href="/orders" class="dim small-link"><%= t.view_all %></a>
+    <div class="section-title" style="margin-bottom:16px"><%= t.profile_nav_title %></div>
+    <% if (navHistory.length === 0) { %>
+      <div class="empty-state"><%= t.no_orders %></div>
+    <% } else { %>
+    <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="num"><%= t.col_nav %></th>
+          <th class="num">P&L</th>
+          <th><%= t.col_recorded_at %></th>
+          <th><%= t.col_note_nav %></th>
+        </tr>
+      </thead>
+      <tbody>
+        <% navHistory.forEach(n => { %>
+        <% const navPnl = n.total_assets - STARTING; %>
+        <tr>
+          <td class="num"><strong>₫<%= formatVND(n.total_assets) %></strong></td>
+          <td class="num">
+            <span class="<%= navPnl >= 0 ? 'text-buy' : 'text-sell' %>">
+              <%= navPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(navPnl)) %>
+              (<%= (navPnl / STARTING * 100).toFixed(2) %>%)
+            </span>
+          </td>
+          <td class="dim small"><%= formatDate(n.recorded_at) %></td>
+          <td class="dim small"><%= n.note || '—' %></td>
+        </tr>
+        <% }) %>
+      </tbody>
+    </table>
     </div>
-    <% if (recentOrders.length === 0) { %>
+    <% } %>
+  </div>
+
+  <!-- Order History -->
+  <div class="card">
+    <div class="section-title" style="margin-bottom:16px"><%= t.profile_orders_title %></div>
+    <% if (orders.length === 0) { %>
       <div class="empty-state"><%= t.no_orders %></div>
     <% } else { %>
     <div class="table-wrap">
@@ -163,8 +190,8 @@
         </tr>
       </thead>
       <tbody>
-        <% recentOrders.forEach(o => { %>
-        <tr>
+        <% orders.forEach(o => { %>
+        <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
           <td class="dim">#<%= o.id %></td>
           <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span></td>
           <td><span class="ticker"><%= o.ticker %></span></td>

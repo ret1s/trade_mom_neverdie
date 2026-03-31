@@ -3,13 +3,17 @@
 
 <div class="container">
   <div class="page-header">
-    <h1 class="page-title"><%= t.page_leaderboard %></h1>
+    <h1 class="page-title">
+      <% if (tournament) { %><%= t.page_leaderboard_full(tournament.name) %><% } else { %><%= t.page_leaderboard %><% } %>
+    </h1>
   </div>
 
+  <% if (!tournament) { %>
+    <div class="card"><div class="empty-state"><%= t.no_tournament %></div></div>
+  <% } else if (users.length === 0) { %>
+    <div class="card"><div class="empty-state"><%= t.no_players %></div></div>
+  <% } else { %>
   <div class="card">
-    <% if (users.length === 0) { %>
-      <div class="empty-state"><%= t.no_players %></div>
-    <% } else { %>
     <div class="table-wrap">
     <table>
       <thead>
@@ -44,7 +48,9 @@
             <% } %>
           </td>
           <td>
-            <strong><%= u.display_name || u.username %></strong>
+            <a href="/player/<%= u.username %>" style="color:inherit;text-decoration:none">
+              <strong><%= u.display_name || u.username %></strong>
+            </a>
           </td>
           <td class="num">₫<%= formatVND(u.balance) %></td>
           <td class="num">₫<%= formatVND(u.holdings_value) %></td>
@@ -61,8 +67,8 @@
       </tbody>
     </table>
     </div>
-    <% } %>
   </div>
+  <% } %>
 </div>
 
 <%- include('partials/foot') %>

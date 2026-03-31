@@ -154,6 +154,30 @@ const locales = {
     err_insuf_balance:      (need, have) => `Số dư khả dụng không đủ. Cần: ₫${need}, Có: ₫${have}`,
     err_insuf_shares:       (ticker, avail) => `Không đủ cổ phiếu khả dụng. ${ticker} khả dụng: ${avail.toLocaleString('vi-VN')} cổ`,
     success_order:          (type, ticker) => `Lệnh ${type === 'buy' ? 'MUA' : 'BÁN'} ${ticker} đã được gửi thành công! Chờ admin xét duyệt.`,
+
+    // Tournaments
+    page_leaderboard_full:  (name) => `BXH — ${name}`,
+    no_tournament:          'Bạn chưa được xếp vào giải đấu nào.',
+    tournament_label:       'Giải đấu',
+    col_tournament:         'GIẢI ĐẤU',
+    admin_tournaments:      'GIẢI ĐẤU',
+    btn_new_tournament:     '+ GIẢI ĐẤU MỚI',
+    label_tournament_name:  'Tên giải đấu',
+    btn_create_tournament:  'TẠO',
+    assign_tournament:      'Xếp giải',
+    no_tournaments:         'Chưa có giải đấu nào',
+    err_tournament_name:    'Tên giải đấu không được để trống',
+    err_tournament_exists:  'Tên giải đấu đã tồn tại',
+
+    // Public profile
+    page_profile:           (name) => `DANH MỤC — ${name}`,
+    profile_orders_title:   'LỊCH SỬ LỆNH',
+    profile_nav_title:      'LỊCH SỬ NAV',
+    btn_record_nav:         'GHI NAV',
+    nav_recorded:           'Đã ghi NAV',
+    col_nav:                'NAV',
+    col_recorded_at:        'THỜI GIAN',
+    col_note_nav:           'GHI CHÚ',
   },
 
   en: {
@@ -311,6 +335,30 @@ const locales = {
     err_insuf_balance:      (need, have) => `Insufficient balance. Need: ₫${need}, Have: ₫${have}`,
     err_insuf_shares:       (ticker, avail) => `Insufficient shares. ${ticker} available: ${avail.toLocaleString('vi-VN')}`,
     success_order:          (type, ticker) => `${type === 'buy' ? 'BUY' : 'SELL'} order for ${ticker} submitted! Awaiting admin approval.`,
+
+    // Tournaments
+    page_leaderboard_full:  (name) => `LEADERBOARD — ${name}`,
+    no_tournament:          'You have not been assigned to a tournament.',
+    tournament_label:       'Tournament',
+    col_tournament:         'TOURNAMENT',
+    admin_tournaments:      'TOURNAMENTS',
+    btn_new_tournament:     '+ NEW TOURNAMENT',
+    label_tournament_name:  'Tournament name',
+    btn_create_tournament:  'CREATE',
+    assign_tournament:      'Assign',
+    no_tournaments:         'No tournaments yet',
+    err_tournament_name:    'Tournament name cannot be empty',
+    err_tournament_exists:  'Tournament name already exists',
+
+    // Public profile
+    page_profile:           (name) => `PORTFOLIO — ${name}`,
+    profile_orders_title:   'ORDER HISTORY',
+    profile_nav_title:      'NAV HISTORY',
+    btn_record_nav:         'RECORD NAV',
+    nav_recorded:           'NAV recorded',
+    col_nav:                'NAV',
+    col_recorded_at:        'TIME',
+    col_note_nav:           'NOTE',
   },
 };
 
