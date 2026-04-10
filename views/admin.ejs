@@ -29,6 +29,7 @@
           <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
             <span class="dim small">#<%= o.id %></span>
             <span class="badge-type badge-<%= o.order_type %> big"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span>
+            <% if (o.market === 'derivative') { %><span class="dim small">PS</span><% } %>
             <span class="ticker big"><%= o.ticker %></span>
             <span class="bold">@</span>
             <span><%= (o.price / 1000).toFixed(2) %></span>
@@ -100,9 +101,11 @@
         <% const STARTING = 1000000000; %>
         <% users.forEach(u => { %>
         <%
-          const totalAssets = u.balance + u.holdings_value;
-          const unrealPnl   = u.holdings_value - u.holdings_cost;
-          const totalPnl    = totalAssets - STARTING;
+          const stockAssets = u.balance + u.holdings_value;
+          const derivAssets = u.derivative_balance + u.deriv_holdings_value;
+          const totalAssets = stockAssets + derivAssets;
+          const unrealPnl   = (u.holdings_value - u.holdings_cost) + (u.deriv_holdings_value - u.deriv_holdings_cost);
+          const totalPnl    = totalAssets - STARTING * 2;
         %>
         <tr>
           <td>
@@ -163,7 +166,9 @@
         <tr class="<%= o.status === 'rejected' ? 'row-rejected' : '' %>">
           <td class="dim">#<%= o.id %></td>
           <td><%= o.username %></td>
-          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span></td>
+          <td><span class="badge-type badge-<%= o.order_type %>"><%= o.order_type === 'buy' ? t.type_buy : t.type_sell %></span>
+            <% if (o.market === 'derivative') { %><span class="dim small">PS</span><% } %>
+          </td>
           <td><span class="ticker"><%= o.ticker %></span></td>
           <td class="num"><%= o.quantity.toLocaleString('vi-VN') %></td>
           <td class="num"><%= (o.price / 1000).toFixed(2) %></td>

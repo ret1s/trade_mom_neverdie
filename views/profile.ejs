@@ -3,6 +3,7 @@
 
 <div class="container">
   <%
+    const holdings = [...stockHoldings, ...derivHoldings];
     let marketHoldingsValue = 0;
     let hasMarketPrices = false;
     let holdingsCost = 0;
@@ -17,9 +18,9 @@
       }
     });
     const unrealizedPnl = hasMarketPrices ? marketHoldingsValue - holdingsCost : null;
-    const totalAssets = profile.balance + marketHoldingsValue;
-    const pnlVsStart = totalAssets - 1000000000;
+    const totalAssets = profile.balance + profile.derivative_balance + marketHoldingsValue;
     const STARTING = 1000000000;
+    const pnlVsStart = totalAssets - STARTING * 2;
   %>
 
   <div class="page-header">
@@ -57,7 +58,7 @@
         <%= pnlVsStart >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnlVsStart)) %>
       </div>
       <div class="stat-note <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
-        <%= (pnlVsStart / STARTING * 100).toFixed(2) %>%
+        <%= (pnlVsStart / (STARTING * 2) * 100).toFixed(2) %>%
       </div>
     </div>
   </div>

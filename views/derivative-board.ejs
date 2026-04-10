@@ -1,0 +1,517 @@
+<%- include('partials/head', { title: t.page_derivative }) %>
+<%- include('partials/nav') %>
+
+<%
+  const allTickers = [...new Set([...watchlist, ...holdings.map(h => h.ticker)])];
+  // Default to VN30F1M (front month) or first in list
+  const f1 = allTickers.includes('VN30F1M') ? 'VN30F1M' : (allTickers.length > 0 ? allTickers[0] : '');
+  const totalAssets = availableBalance + holdingsValue;
+  const pnl = totalAssets - startingBalance;
+%>
+
+<div class="deriv-layout">
+  <% if (flash.error) { %><div class="alert alert-error" style="margin:8px 12px"><%= flash.error %></div><% } %>
+  <% if (flash.success) { %><div class="alert alert-success" style="margin:8px 12px"><%= flash.success %></div><% } %>
+
+  <!-- TOP BAR -->
+  <div class="deriv-topbar">
+    <div class="deriv-stat">
+      <span class="dnse-dot" id="dnseDot"></span>
+      <span class="dim" id="dnseLabel">DNSE</span>
+    </div>
+    <div class="deriv-chips" id="tickerChips">
+      <% allTickers.forEach((ticker, i) => { %>
+        <button class="chip <%= i === 0 ? 'chip-active' : '' %>" data-ticker="<%= ticker %>" onclick="selectTicker('<%= ticker %>')">
+          <span class="chip-name"><%= ticker %></span>
+          <span class="chip-price" id="chip-<%= ticker %>">—</span>
+        </button>
+      <% }) %>
+      <form method="POST" action="/derivative/watch" style="display:inline-flex">
+        <input type="text" name="ticker" placeholder="+ Thêm" style="width:64px;padding:3px 6px;font-size:10px;text-transform:uppercase;background:transparent;border:1px dashed var(--border2);color:var(--text-dim)">
+      </form>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:16px;font-size:12px;white-space:nowrap">
+      <span class="dim">Số dư</span><span class="bold">₫<%= formatVND(availableBalance) %></span>
+      <span class="dim">P&L</span>
+      <span class="<%= pnl >= 0 ? 'text-buy' : 'text-sell' %>"><%= pnl >= 0 ? '+' : '' %><%= (pnl / startingBalance * 100).toFixed(2) %>%</span>
+    </div>
+  </div>
+
+  <div class="deriv-main">
+    <!-- LEFT: Chart + Board -->
+    <div class="deriv-left">
+      <!-- CHART -->
+      <div class="chart-container">
+        <div class="chart-header">
+          <span id="chartTitle" class="bold"><%= f1 %></span>
+          <span id="chartPrice" class="bold" style="font-size:16px;margin-left:8px">—</span>
+          <span id="chartChange" style="font-size:12px;margin-left:6px">—</span>
+          <div style="margin-left:auto;display:flex;gap:2px">
+            <button class="tf-btn" data-tf="tick" onclick="switchTF('tick')">Tick</button>
+            <button class="tf-btn tf-active" data-tf="1m" onclick="switchTF('1m')">1m</button>
+          </div>
+        </div>
+        <div id="chartArea" style="flex:1;min-height:250px;position:relative"></div>
+      </div>
+
+      <!-- PRICE BOARD -->
+      <div class="board-container">
+        <div class="deriv-board-header">
+          <span class="section-title" style="margin:0">BẢNG GIÁ PHÁI SINH</span>
+        </div>
+        <div class="table-wrap">
+          <table class="board-table">
+            <thead>
+              <tr>
+                <th>MÃ HĐ</th>
+                <th class="num">TC</th>
+                <th class="num">TRẦN</th>
+                <th class="num">SÀN</th>
+                <th class="num ask-col">M3</th>
+                <th class="num ask-col">KL</th>
+                <th class="num ask-col">M2</th>
+                <th class="num ask-col">KL</th>
+                <th class="num ask-col">M1</th>
+                <th class="num ask-col">KL</th>
+                <th class="num match-col">GIÁ</th>
+                <th class="num match-col">KL</th>
+                <th class="num match-col">+/-</th>
+                <th class="num match-col">%</th>
+                <th class="num bid-col">B1</th>
+                <th class="num bid-col">KL</th>
+                <th class="num bid-col">B2</th>
+                <th class="num bid-col">KL</th>
+                <th class="num bid-col">B3</th>
+                <th class="num bid-col">KL</th>
+                <th class="num">TỔNG KL</th>
+              </tr>
+            </thead>
+            <tbody id="boardBody">
+              <% allTickers.forEach((ticker, i) => { %>
+              <% const q = quotes[ticker] || {}; %>
+              <tr id="row-<%= ticker %>" class="board-row <%= i === 0 ? 'row-selected' : '' %>" onclick="selectTicker('<%= ticker %>')">
+                <td><span class="ticker" style="font-size:12px"><%= ticker %></span></td>
+                <td class="num ref"><%= q.refPrice ? q.refPrice.toFixed(1) : '—' %></td>
+                <td class="num ceil"><%= q.ceilingPrice ? q.ceilingPrice.toFixed(1) : '—' %></td>
+                <td class="num floor"><%= q.floorPrice ? q.floorPrice.toFixed(1) : '—' %></td>
+                <td class="num ask-cell"><span class="qbid3p"><%= q.bid3Price || '—' %></span></td>
+                <td class="num ask-cell"><span class="qbid3v dim"><%= q.bid3Volume || '' %></span></td>
+                <td class="num ask-cell"><span class="qbid2p"><%= q.bid2Price || '—' %></span></td>
+                <td class="num ask-cell"><span class="qbid2v dim"><%= q.bid2Volume || '' %></span></td>
+                <td class="num ask-cell"><span class="qbid1p"><%= q.bid1Price || '—' %></span></td>
+                <td class="num ask-cell"><span class="qbid1v dim"><%= q.bid1Volume || '' %></span></td>
+                <td class="num match-cell"><span class="qmatch bold"><%= q.matchPrice ? q.matchPrice.toFixed(1) : '—' %></span></td>
+                <td class="num match-cell"><span class="qmvol"><%= q.matchVolume || '' %></span></td>
+                <td class="num match-cell"><span class="qchg">—</span></td>
+                <td class="num match-cell"><span class="qchgp">—</span></td>
+                <td class="num bid-cell"><span class="qask1p"><%= q.ask1Price || '—' %></span></td>
+                <td class="num bid-cell"><span class="qask1v dim"><%= q.ask1Volume || '' %></span></td>
+                <td class="num bid-cell"><span class="qask2p"><%= q.ask2Price || '—' %></span></td>
+                <td class="num bid-cell"><span class="qask2v dim"><%= q.ask2Volume || '' %></span></td>
+                <td class="num bid-cell"><span class="qask3p"><%= q.ask3Price || '—' %></span></td>
+                <td class="num bid-cell"><span class="qask3v dim"><%= q.ask3Volume || '' %></span></td>
+                <td class="num"><span class="qtvol"><%= q.totalVolume || '—' %></span></td>
+              </tr>
+              <% }) %>
+              <% if (allTickers.length === 0) { %>
+              <tr><td colspan="21" class="dim" style="text-align:center;padding:20px">Chưa có mã phái sinh. Thêm mã ở trên.</td></tr>
+              <% } %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: Order + Holdings + Orders -->
+    <div class="deriv-right">
+      <div class="order-panel">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <span class="section-title" style="margin:0">ĐẶT LỆNH</span>
+          <span id="selectedTicker" class="ticker" style="font-size:14px"><%= f1 %></span>
+        </div>
+        <form method="POST" action="/orders" id="derivOrderForm">
+          <input type="hidden" name="market" value="derivative">
+          <input type="hidden" name="ticker" id="orderTicker" value="<%= f1 %>">
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;margin-bottom:14px">
+            <label class="long-btn active"><input type="radio" name="order_type" value="buy" checked style="display:none"><span>LONG</span></label>
+            <label class="short-btn"><input type="radio" name="order_type" value="sell" style="display:none"><span>SHORT</span></label>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>GIÁ (nghìn đồng)</label>
+            <div style="display:flex;gap:0">
+              <button type="button" class="price-adj" onclick="adjPrice(-0.1)">-</button>
+              <input type="number" name="price" id="orderPrice" step="0.1" min="0.1" placeholder="0.0" required style="text-align:center;border-left:none;border-right:none">
+              <button type="button" class="price-adj" onclick="adjPrice(0.1)">+</button>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:10px">
+            <label>SỐ LƯỢNG (hợp đồng)</label>
+            <input type="number" name="quantity" id="orderQty" min="1" step="1" value="1" required>
+          </div>
+          <div class="order-summary" style="margin-bottom:10px">
+            <div class="summary-row"><span class="dim">Giá trị GD</span><span id="sumTotal">—</span></div>
+            <div class="summary-row"><span class="dim">Phí (0.1%)</span><span id="sumFee">—</span></div>
+            <div class="summary-row summary-divider"><span id="sumLabel">Tổng</span><span id="sumNet" class="bold">—</span></div>
+          </div>
+          <button type="submit" class="btn btn-primary btn-full">GỬI LỆNH</button>
+        </form>
+      </div>
+
+      <% if (holdings.length > 0) { %>
+      <div class="right-section">
+        <div class="section-title" style="margin-bottom:6px">VỊ THẾ</div>
+        <table><thead><tr><th>MÃ</th><th class="num">KL</th><th class="num">GIÁ VỐN</th><th class="num">P&L</th><th></th></tr></thead>
+          <tbody>
+            <% holdings.forEach(h => { %>
+            <% const mv = h.market_price ? h.market_price * h.total_quantity : null; const cb = h.avg_cost * h.total_quantity; const pl = mv !== null ? mv - cb : null; %>
+            <tr>
+              <td><span class="ticker" style="font-size:11px"><%= h.ticker %></span></td>
+              <td class="num"><%= h.total_quantity %></td>
+              <td class="num dim"><%= (h.avg_cost / 1000).toFixed(1) %></td>
+              <td class="num <%= pl !== null ? (pl >= 0 ? 'text-buy' : 'text-sell') : '' %>"><% if (pl !== null) { %><%= pl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pl)) %><% } else { %>—<% } %></td>
+              <td><a href="/orders/new?ticker=<%= h.ticker %>&type=sell&market=derivative" class="btn btn-sm btn-sell" style="font-size:9px;padding:2px 6px">ĐÓNG</a></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+      <% } %>
+
+      <div class="right-section">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span class="section-title">LỆNH GẦN ĐÂY</span>
+          <a href="/orders?market=derivative" class="dim" style="font-size:10px">Tất cả</a>
+        </div>
+        <% if (recentOrders.length === 0) { %>
+          <div class="dim" style="text-align:center;padding:10px;font-size:11px">Chưa có lệnh</div>
+        <% } else { %>
+        <table><thead><tr><th>LOẠI</th><th>MÃ</th><th class="num">KL</th><th class="num">GIÁ</th><th>TT</th></tr></thead>
+          <tbody>
+            <% recentOrders.slice(0, 6).forEach(o => { %>
+            <tr>
+              <td><span class="badge-type badge-<%= o.order_type %>" style="font-size:10px"><%= o.order_type === 'buy' ? 'L' : 'S' %></span></td>
+              <td><span class="ticker" style="font-size:10px"><%= o.ticker %></span></td>
+              <td class="num"><%= o.quantity %></td>
+              <td class="num"><%= (o.price / 1000).toFixed(1) %></td>
+              <td><span class="badge badge-<%= o.status %>" style="font-size:8px;padding:1px 4px"><%= o.status === 'pending' ? 'CHỜ' : o.status === 'approved' ? 'KHỚP' : 'HỦY' %></span></td>
+            </tr>
+            <% }) %>
+          </tbody>
+        </table>
+        <% } %>
+      </div>
+
+      <div class="right-section" style="text-align:center">
+        <div class="dim" style="font-size:10px;letter-spacing:1px;margin-bottom:4px">SỐ DƯ KHẢ DỤNG</div>
+        <div class="bold" style="font-size:16px">₫<%= formatVND(availableBalance) %></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Chart library -->
+<script src="/lightweight-charts.js"></script>
+<script>
+  // ─── Chart setup ───────────────────────────────────────────────────────
+  let currentTF = '1m';
+  let selectedSymbol = '<%= f1 %>';
+  let chart, series;
+
+  // Offset UTC timestamps to Vietnam time (UTC+7) for display
+  const VN_OFFSET = 7 * 3600;
+  function vnTime(data) {
+    return data.map(d => ({ ...d, time: d.time + VN_OFFSET }));
+  }
+
+  function getTheme() {
+    const dark = !document.documentElement.classList.contains('light');
+    return {
+      bg: dark ? '#0d0d0d' : '#ffffff',
+      text: dark ? '#888888' : '#555555',
+      grid: dark ? '#1a1a1a' : '#e8e8e8',
+      up: '#00cc66', down: '#ff3333',
+      line: '#3399ff',
+    };
+  }
+
+  function createChart() {
+    const el = document.getElementById('chartArea');
+    el.innerHTML = '';
+    const theme = getTheme();
+    chart = LightweightCharts.createChart(el, {
+      width: el.clientWidth || 800,
+      height: el.clientHeight || 300,
+      layout: {
+        background: { type: LightweightCharts.ColorType.Solid, color: theme.bg },
+        textColor: theme.text,
+      },
+      grid: {
+        vertLines: { color: theme.grid },
+        horzLines: { color: theme.grid },
+      },
+      crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+      rightPriceScale: { borderColor: theme.grid },
+      timeScale: { borderColor: theme.grid, timeVisible: true, secondsVisible: false },
+    });
+    new ResizeObserver((entries) => {
+      const r = entries[0].contentRect;
+      if (r.width > 0 && r.height > 0) chart.applyOptions({ width: r.width, height: r.height });
+    }).observe(el);
+  }
+
+  function switchTF(tf) {
+    currentTF = tf;
+    document.querySelectorAll('.tf-btn').forEach(b => b.classList.toggle('tf-active', b.dataset.tf === tf));
+    loadChart(selectedSymbol);
+  }
+
+  function loadChart(ticker) {
+    selectedSymbol = ticker;
+    document.getElementById('chartTitle').textContent = ticker;
+    createChart();
+    const theme = getTheme();
+
+    if (currentTF === '1m') {
+      series = chart.addCandlestickSeries({
+        upColor: theme.up, downColor: theme.down,
+        borderUpColor: theme.up, borderDownColor: theme.down,
+        wickUpColor: theme.up, wickDownColor: theme.down,
+      });
+      fetch('/api/candles/' + ticker + '?resolution=1&days=3')
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            series.setData(vnTime(data));
+            chart.timeScale().fitContent();
+            document.getElementById('chartPrice').textContent = data[data.length - 1].close.toFixed(1);
+          }
+        })
+        .catch(e => console.error('Chart load error:', e));
+    } else {
+      series = chart.addAreaSeries({
+        lineColor: theme.line, lineWidth: 2,
+        topColor: 'rgba(51,153,255,0.15)', bottomColor: 'rgba(51,153,255,0.02)',
+      });
+      fetch('/api/candles/' + ticker + '?resolution=1&days=1')
+        .then(r => r.json())
+        .then(data => {
+          if (data && data.length > 0) {
+            series.setData(vnTime(data).map(d => ({ time: d.time, value: d.close })));
+            chart.timeScale().fitContent();
+            document.getElementById('chartPrice').textContent = data[data.length - 1].close.toFixed(1);
+          }
+        })
+        .catch(e => console.error('Chart load error:', e));
+    }
+  }
+
+  // Wait for DOM layout to settle before rendering chart
+  requestAnimationFrame(() => { requestAnimationFrame(() => { loadChart(selectedSymbol); }); });
+
+  // ─── SSE ───────────────────────────────────────────────────────────────
+  const es = new EventSource('/api/sse/quotes');
+  es.onmessage = function(e) {
+    try {
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'quote') {
+        updateBoard(msg.ticker, msg.quote);
+        // Update tick chart for selected symbol
+        if (msg.ticker === selectedSymbol && currentTF === 'tick' && msg.quote.matchPrice > 0) {
+          const t = Math.floor(Date.now() / 1000) + VN_OFFSET;
+          try { series.update({ time: t, value: msg.quote.matchPrice }); } catch(e) {}
+        }
+      }
+      if (msg.type === 'candle' && msg.ticker === selectedSymbol && currentTF === '1m') {
+        try { series.update({ ...msg.candle, time: msg.candle.time + VN_OFFSET }); } catch(e) {}
+      }
+      if (msg.type === 'init') {
+        Object.entries(msg.quotes).forEach(([t, q]) => updateBoard(t, q));
+        // Update DNSE status
+        document.getElementById('dnseDot').style.background = 'var(--green)';
+        document.getElementById('dnseLabel').textContent = 'DNSE LIVE';
+      }
+    } catch(ex) {}
+  };
+  es.onerror = function() {
+    document.getElementById('dnseDot').style.background = 'var(--text-dim)';
+    document.getElementById('dnseLabel').textContent = 'DNSE OFF';
+  };
+
+  // ─── Board updates ─────────────────────────────────────────────────────
+  function updateBoard(ticker, q) {
+    const row = document.getElementById('row-' + ticker);
+    if (!row) return;
+    const set = (cls, v) => { const e = row.querySelector('.' + cls); if (e) e.textContent = v; };
+    const mp = q.matchPrice || 0, ref = q.refPrice || 0;
+    const chg = q.change || (ref > 0 ? mp - ref : 0);
+    const chgP = q.changePct || (ref > 0 ? ((mp - ref) / ref * 100) : 0);
+    const cc = chg >= 0 ? 'text-buy' : 'text-sell';
+
+    set('ref', ref ? ref.toFixed(1) : '—');
+    set('ceil', q.ceilingPrice ? q.ceilingPrice.toFixed(1) : '—');
+    set('floor', q.floorPrice ? q.floorPrice.toFixed(1) : '—');
+    set('qbid3p', q.bid3Price || '—'); set('qbid3v', q.bid3Volume || '');
+    set('qbid2p', q.bid2Price || '—'); set('qbid2v', q.bid2Volume || '');
+    set('qbid1p', q.bid1Price || '—'); set('qbid1v', q.bid1Volume || '');
+
+    const me = row.querySelector('.qmatch');
+    if (me && mp) {
+      me.textContent = mp.toFixed(1); me.className = 'qmatch bold ' + cc;
+      me.style.background = chg >= 0 ? 'rgba(0,204,102,0.2)' : 'rgba(255,51,51,0.2)';
+      setTimeout(() => { me.style.background = ''; }, 350);
+    }
+    set('qmvol', q.matchVolume || '');
+    const ce = row.querySelector('.qchg');
+    if (ce) { ce.textContent = chg ? (chg >= 0 ? '+' : '') + chg.toFixed(1) : '—'; ce.className = 'qchg ' + cc; }
+    const pe = row.querySelector('.qchgp');
+    if (pe) { pe.textContent = chgP ? (chgP >= 0 ? '+' : '') + chgP.toFixed(2) + '%' : '—'; pe.className = 'qchgp ' + cc; }
+    set('qask1p', q.ask1Price || '—'); set('qask1v', q.ask1Volume || '');
+    set('qask2p', q.ask2Price || '—'); set('qask2v', q.ask2Volume || '');
+    set('qask3p', q.ask3Price || '—'); set('qask3v', q.ask3Volume || '');
+    set('qtvol', q.totalVolume || '—');
+
+    // Update chip
+    const chip = document.getElementById('chip-' + ticker);
+    if (chip && mp) { chip.textContent = mp.toFixed(1); chip.className = 'chip-price ' + cc; }
+
+    // Update chart header if selected
+    if (ticker === selectedSymbol && mp) {
+      document.getElementById('chartPrice').textContent = mp.toFixed(1);
+      const chgEl = document.getElementById('chartChange');
+      chgEl.textContent = (chg >= 0 ? '+' : '') + chg.toFixed(1) + ' (' + (chgP >= 0 ? '+' : '') + chgP.toFixed(2) + '%)';
+      chgEl.className = cc;
+    }
+
+    // Auto-fill order price
+    if (ticker === document.getElementById('orderTicker').value && mp > 0) {
+      const pi = document.getElementById('orderPrice');
+      if (!pi.dataset.manual) { pi.value = mp.toFixed(1); calc(); }
+    }
+  }
+
+  // ─── Ticker selection ──────────────────────────────────────────────────
+  function selectTicker(ticker) {
+    document.getElementById('orderTicker').value = ticker;
+    document.getElementById('selectedTicker').textContent = ticker;
+    document.getElementById('orderPrice').dataset.manual = '';
+    document.querySelectorAll('.board-row').forEach(r => r.classList.remove('row-selected'));
+    const row = document.getElementById('row-' + ticker);
+    if (row) row.classList.add('row-selected');
+    document.querySelectorAll('.chip').forEach(c => c.classList.remove('chip-active'));
+    const chip = document.querySelector('.chip[data-ticker="' + ticker + '"]');
+    if (chip) chip.classList.add('chip-active');
+    loadChart(ticker);
+  }
+
+  // ─── Order form ────────────────────────────────────────────────────────
+  function adjPrice(d) {
+    const i = document.getElementById('orderPrice');
+    i.value = (parseFloat(i.value || 0) + d).toFixed(1);
+    i.dataset.manual = '1'; calc();
+  }
+  document.getElementById('orderPrice').addEventListener('input', function() { this.dataset.manual = '1'; calc(); });
+  document.getElementById('orderQty').addEventListener('input', calc);
+  document.querySelectorAll('input[name="order_type"]').forEach(r => r.addEventListener('change', function() {
+    document.querySelector('.long-btn').classList.toggle('active', document.querySelector('.long-btn input').checked);
+    document.querySelector('.short-btn').classList.toggle('active', document.querySelector('.short-btn input').checked);
+    calc();
+  }));
+  function calc() {
+    const qty = parseInt(document.getElementById('orderQty').value) || 0;
+    const prcK = parseFloat(document.getElementById('orderPrice').value) || 0;
+    const prc = prcK * 1000;
+    if (qty > 0 && prc > 0) {
+      const total = qty * prc, fee = total * 0.001;
+      const isBuy = document.querySelector('input[name="order_type"]:checked').value === 'buy';
+      document.getElementById('sumTotal').textContent = fmt(total);
+      document.getElementById('sumFee').textContent = fmt(fee);
+      document.getElementById('sumNet').textContent = fmt(isBuy ? total + fee : total - fee);
+      document.getElementById('sumLabel').textContent = isBuy ? 'Tổng trả' : 'Tổng nhận';
+    }
+  }
+  function fmt(n) { return '₫' + Math.round(n).toLocaleString('vi-VN'); }
+  calc();
+</script>
+
+<style>
+  .deriv-layout { max-width:100%; margin:0; padding:0; }
+  .deriv-topbar {
+    display:flex; align-items:center; gap:12px; padding:6px 12px;
+    background:var(--surface); border-bottom:1px solid var(--border);
+    font-size:12px; overflow-x:auto;
+  }
+  .deriv-stat { display:flex; align-items:center; gap:4px; white-space:nowrap; }
+  .dnse-dot {
+    display:inline-block; width:8px; height:8px; border-radius:50%;
+    background:<%= dnseStatus.connected ? 'var(--green)' : 'var(--text-dim)' %>;
+  }
+  .deriv-chips { display:flex; gap:4px; align-items:center; flex:1; overflow-x:auto; }
+  .chip {
+    display:flex; flex-direction:column; align-items:center; gap:1px;
+    padding:4px 10px; border:1px solid var(--border2); background:transparent;
+    color:var(--text-dim); cursor:pointer; font-family:var(--font); font-size:10px;
+    white-space:nowrap; transition:all 0.15s;
+  }
+  .chip:hover { border-color:var(--text-dim); color:var(--text); }
+  .chip-active { border-color:var(--text-bright); color:var(--text-bright); background:var(--surface2); }
+  .chip-name { font-weight:bold; letter-spacing:0.5px; }
+  .chip-price { font-size:11px; }
+
+  .deriv-main { display:grid; grid-template-columns:1fr 300px; gap:0; height:calc(100vh - 52px - 36px); }
+  .deriv-left { display:flex; flex-direction:column; overflow:hidden; }
+  .deriv-right { border-left:1px solid var(--border); background:var(--surface); overflow-y:auto; }
+
+  .chart-container { flex:1; min-height:280px; display:flex; flex-direction:column; border-bottom:1px solid var(--border); }
+  .chart-header {
+    display:flex; align-items:center; padding:6px 10px; font-size:13px;
+    border-bottom:1px solid var(--border); background:var(--surface);
+  }
+  .tf-btn {
+    background:transparent; border:1px solid var(--border2); color:var(--text-dim);
+    padding:2px 8px; font-size:10px; cursor:pointer; font-family:var(--font);
+  }
+  .tf-btn.tf-active { background:var(--surface2); color:var(--text-bright); border-color:var(--text-bright); }
+
+  .board-container { max-height:220px; overflow-y:auto; }
+  .deriv-board-header {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:6px 10px; border-bottom:1px solid var(--border);
+    position:sticky; top:0; background:var(--surface); z-index:1;
+  }
+  .board-table th { padding:3px 5px; font-size:9px; }
+  .board-table td { padding:4px 5px; font-size:11px; cursor:pointer; }
+  .board-table tr:hover td { background:var(--surface2); }
+  .board-row.row-selected td { background:rgba(255,255,255,0.04); }
+  .ask-col,.ask-cell { color:var(--green); }
+  .bid-col,.bid-cell { color:var(--red); }
+  .match-col { color:var(--yellow); }
+
+  .order-panel { padding:14px; border-bottom:1px solid var(--border); }
+  .right-section { padding:10px 14px; border-bottom:1px solid var(--border); }
+  .right-section table { font-size:11px; }
+  .right-section th { padding:3px 6px; font-size:9px; }
+  .right-section td { padding:4px 6px; font-size:11px; }
+
+  .long-btn,.short-btn {
+    display:block; text-align:center; padding:10px; cursor:pointer;
+    font-size:13px; font-weight:bold; letter-spacing:2px;
+    border:1px solid var(--border2); color:var(--text-dim); transition:all 0.15s;
+  }
+  .long-btn { border-right:none; }
+  .long-btn.active { background:rgba(0,204,102,0.15); color:var(--green); border-color:var(--green); }
+  .short-btn.active { background:rgba(255,51,51,0.15); color:var(--red); border-color:var(--red); }
+  .price-adj {
+    background:var(--surface2); border:1px solid var(--border2); color:var(--text-bright);
+    width:36px; font-size:16px; cursor:pointer; font-family:var(--font);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .price-adj:hover { background:var(--border2); }
+
+  @media (max-width:900px) {
+    .deriv-main { grid-template-columns:1fr; height:auto; }
+    .deriv-right { border-left:none; border-top:1px solid var(--border); }
+    .chart-container { min-height:200px; }
+  }
+</style>
+
+<%- include('partials/foot') %>

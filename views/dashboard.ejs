@@ -1,4 +1,4 @@
-<%- include('partials/head', { title: t.page_dashboard }) %>
+<%- include('partials/head', { title: market === 'derivative' ? t.page_derivative : t.page_dashboard }) %>
 <%- include('partials/nav') %>
 
 <div class="container">
@@ -7,17 +7,25 @@
   <% if (flash.success) { %><div class="alert alert-success"><%= flash.success %></div><% } %>
 
   <div class="page-header">
-    <h1 class="page-title"><%= t.page_dashboard %></h1>
-    <div style="display:flex;gap:8px">
+    <h1 class="page-title"><%= market === 'derivative' ? t.page_derivative : t.page_dashboard %></h1>
+    <div style="display:flex;gap:8px;align-items:center">
+      <% if (dnseStatus) { %>
+        <span class="dim small" style="margin-right:4px" title="<%= dnseStatus.tradingHours ? t.dnse_trading_hours : t.dnse_off_hours %>">
+          <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:<%= dnseStatus.connected ? 'var(--green)' : 'var(--text-dim)' %>;margin-right:4px"></span>DNSE
+        </span>
+      <% } %>
       <form method="POST" action="/nav/record">
         <input type="hidden" name="note" value="">
+        <input type="hidden" name="market" value="<%= market %>">
         <button type="submit" class="btn" style="border-color:var(--border2);color:var(--text-dim)"><%= t.btn_record_nav %></button>
       </form>
-      <a href="/orders/new" class="btn btn-primary"><%= t.btn_new_order %></a>
+      <a href="/orders/new?market=<%= market %>" class="btn btn-primary"><%= t.btn_new_order %></a>
     </div>
   </div>
 
   <%
+    const isDerivative = market === 'derivative';
+    const userBalance = isDerivative ? user.derivative_balance : user.balance;
     let marketHoldingsValue = 0;
     let hasMarketPrices = false;
     holdings.forEach(h => {
@@ -33,7 +41,7 @@
   %>
   <div class="stats-bar">
     <div class="stat-card">
-      <div class="stat-label"><%= t.stat_avail_balance %></div>
+      <div class="stat-label"><%= isDerivative ? t.stat_deriv_balance : t.stat_avail_balance %></div>
       <div class="stat-value">₫<%= formatVND(availableBalance) %></div>
     </div>
     <div class="stat-card">
@@ -51,23 +59,23 @@
     </div>
     <div class="stat-card">
       <div class="stat-label"><%= t.stat_pnl %></div>
-      <% const pnlVsStart = totalAssets - 1000000000; %>
+      <% const pnlVsStart = totalAssets - startingBalance; %>
       <div class="stat-value <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
         <%= pnlVsStart >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(pnlVsStart)) %>
       </div>
       <div class="stat-note <%= pnlVsStart >= 0 ? 'text-buy' : 'text-sell' %>">
-        <%= (pnlVsStart / 1000000000 * 100).toFixed(2) %>%
+        <%= (pnlVsStart / startingBalance * 100).toFixed(2) %>%
       </div>
     </div>
   </div>
 
   <div class="card">
     <div class="section-header">
-      <div class="section-title"><%= t.holdings_title %></div>
+      <div class="section-title"><%= isDerivative ? t.deriv_holdings_title : t.holdings_title %></div>
       <span class="dim"><%= holdings.length %></span>
     </div>
     <% if (holdings.length === 0) { %>
-      <div class="empty-state"><%= t.no_holdings %> <a href="/orders/new"><%= t.no_holdings_link %></a></div>
+      <div class="empty-state"><%= isDerivative ? t.deriv_no_holdings : t.no_holdings %> <a href="/orders/new?market=<%= market %>"><%= isDerivative ? t.deriv_no_holdings_link : t.no_holdings_link %></a></div>
     <% } else { %>
     <div class="table-wrap">
     <table>
@@ -129,7 +137,7 @@
           </td>
           <td>
             <% if (h.available_quantity > 0) { %>
-            <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" class="btn btn-sm btn-sell"><%= t.btn_sell %></a>
+            <a href="/orders/new?ticker=<%= h.ticker %>&type=sell&market=<%= market %>" class="btn btn-sm btn-sell"><%= t.btn_sell %></a>
             <% } %>
           </td>
         </tr>
@@ -143,7 +151,7 @@
   <div class="card">
     <div class="section-header">
       <div class="section-title"><%= t.recent_orders %></div>
-      <a href="/orders" class="dim small-link"><%= t.view_all %></a>
+      <a href="/orders?market=<%= market %>" class="dim small-link"><%= t.view_all %></a>
     </div>
     <% if (recentOrders.length === 0) { %>
       <div class="empty-state"><%= t.no_orders %></div>
@@ -182,5 +190,17 @@
   </div>
 
 </div>
+
+<script>
+// Auto-refresh page during trading hours (prices update in real-time via DNSE)
+(function() {
+  const dnseConnected = <%= dnseStatus ? dnseStatus.connected : false %>;
+  const tradingHours = <%= dnseStatus ? dnseStatus.tradingHours : false %>;
+  if (tradingHours) {
+    // Refresh page every 30 seconds during trading hours
+    setTimeout(function() { location.reload(); }, 30000);
+  }
+})();
+</script>
 
 <%- include('partials/foot') %>

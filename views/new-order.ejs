@@ -9,9 +9,11 @@
   <% if (error) { %><div class="alert alert-error"><%= error %></div><% } %>
   <% if (success) { %><div class="alert alert-success"><%= success %></div><% } %>
 
+  <% const isDerivative = market === 'derivative'; %>
   <div class="two-col">
     <div class="card">
       <form method="POST" action="/orders" id="orderForm">
+        <input type="hidden" name="market" value="<%= market %>">
 
         <div class="form-group">
           <label><%= t.label_order_type %></label>
@@ -30,7 +32,7 @@
         <div class="form-group">
           <label><%= t.label_ticker %></label>
           <input type="text" name="ticker" id="ticker" value="<%= prefill.ticker %>"
-            placeholder="<%= t.placeholder_ticker %>" required maxlength="10"
+            placeholder="<%= isDerivative ? t.placeholder_ticker_d : t.placeholder_ticker %>" required maxlength="10"
             style="text-transform:uppercase">
         </div>
 
@@ -46,8 +48,8 @@
         </div>
 
         <div class="form-group">
-          <label><%= t.label_qty %></label>
-          <input type="number" name="quantity" id="quantity" min="100" step="100" placeholder="100" required>
+          <label><%= isDerivative ? t.label_qty_contracts : t.label_qty %></label>
+          <input type="number" name="quantity" id="quantity" min="<%= isDerivative ? 1 : 100 %>" step="<%= isDerivative ? 1 : 100 %>" placeholder="<%= isDerivative ? '1' : '100' %>" required>
         </div>
 
         <div class="form-group">
@@ -102,7 +104,7 @@
             <% if (h.available_quantity > 0) { %>
             <tr>
               <td>
-                <a href="/orders/new?ticker=<%= h.ticker %>&type=sell" style="color:inherit">
+                <a href="/orders/new?ticker=<%= h.ticker %>&type=sell&market=<%= market %>" style="color:inherit">
                   <span class="ticker"><%= h.ticker %></span>
                 </a>
               </td>

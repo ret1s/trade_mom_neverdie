@@ -4,11 +4,7 @@
   <form method="POST" action="/lang" style="display:inline">
     <button type="submit" class="theme-toggle"><%= t.nav_lang_switch %></button>
   </form>
-  <button id="themeToggle" class="theme-toggle">◐</button>
 </div>
-<script>
-  document.getElementById('themeToggle').addEventListener('click',function(){var l=document.documentElement.classList.toggle('light');localStorage.setItem('theme',l?'light':'dark');});
-</script>
 
 <div class="auth-container">
   <div class="auth-box">

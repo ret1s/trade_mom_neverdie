@@ -4,15 +4,20 @@ const bcrypt = require('bcryptjs');
 const path = require('path');
 const db = require('./db');
 const locales = require('./locales');
+const dnse = require('./dnse');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 db.initDB();
 
+// Initialize DNSE market data feed
+dnse.init(db.getDatabase());
+dnse.startAutoRefresh();
+
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname, 'public'), { maxAge: 0, etag: false }));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(session({
@@ -126,40 +131,69 @@ app.post('/lang', (req, res) => {
 
 app.get('/dashboard', requireAuth, (req, res) => {
   const user = db.getUserById(req.session.userId);
-  const holdings = db.getHoldings(req.session.userId);
-  const recentOrders = db.getUserOrders(req.session.userId, 8);
-  const availableBalance = db.getAvailableBalance(req.session.userId);
+  const holdings = db.getHoldings(req.session.userId, 'stock');
+  const recentOrders = db.getUserOrders(req.session.userId, 8, 'stock');
+  const availableBalance = db.getAvailableBalance(req.session.userId, 'stock');
   const holdingsValue = holdings.reduce((s, h) => s + h.avg_cost * h.total_quantity, 0);
-  res.render('dashboard', { user, holdings, recentOrders, availableBalance, holdingsValue });
+  const dnseStatus = dnse.getStatus();
+  res.render('dashboard', { user, holdings, recentOrders, availableBalance, holdingsValue, market: 'stock', dnseStatus, startingBalance: 1000000000 });
+});
+
+// ─── Derivatives Board ───────────────────────────────────────────────────────
+
+app.get('/derivative', requireAuth, (req, res) => {
+  const user = db.getUserById(req.session.userId);
+  const holdings = db.getHoldings(req.session.userId, 'derivative');
+  const recentOrders = db.getUserOrders(req.session.userId, 8, 'derivative');
+  const availableBalance = db.getAvailableBalance(req.session.userId, 'derivative');
+  const holdingsValue = holdings.reduce((s, h) => s + h.avg_cost * h.total_quantity, 0);
+  const dnseStatus = dnse.getStatus();
+  const watchlist = dnse.getDerivativeWatchlist();
+  const quotes = dnse.getQuotesCache();
+  res.render('derivative-board', {
+    user, holdings, recentOrders, availableBalance, holdingsValue,
+    market: 'derivative', dnseStatus, startingBalance: 1000000000,
+    watchlist, quotes,
+  });
+});
+
+app.post('/derivative/watch', requireAuth, (req, res) => {
+  const ticker = req.body.ticker?.trim().toUpperCase();
+  if (ticker) dnse.addToWatchlist(ticker);
+  res.redirect('/derivative');
 });
 
 // ─── Orders ───────────────────────────────────────────────────────────────────
 
 app.get('/orders', requireAuth, (req, res) => {
-  const orders = db.getUserOrders(req.session.userId);
-  res.render('orders', { orders });
+  const market = req.query.market || 'stock';
+  const orders = db.getUserOrders(req.session.userId, 0, market);
+  res.render('orders', { orders, market });
 });
 
 app.get('/orders/new', requireAuth, (req, res) => {
+  const market = req.query.market || 'stock';
   const user = db.getUserById(req.session.userId);
-  const holdings = db.getHoldings(req.session.userId);
-  const availableBalance = db.getAvailableBalance(req.session.userId);
+  const holdings = db.getHoldings(req.session.userId, market);
+  const availableBalance = db.getAvailableBalance(req.session.userId, market);
   res.render('new-order', {
-    user, holdings, availableBalance,
+    user, holdings, availableBalance, market,
     error: null, success: null,
     prefill: { ticker: req.query.ticker || '', type: req.query.type || 'buy' },
   });
 });
 
 app.post('/orders', requireAuth, (req, res) => {
+  const market = req.body.market || 'stock';
+  const isDerivative = market === 'derivative';
   const user = db.getUserById(req.session.userId);
-  const holdings = db.getHoldings(req.session.userId);
-  const availableBalance = db.getAvailableBalance(req.session.userId);
+  const holdings = db.getHoldings(req.session.userId, market);
+  const availableBalance = db.getAvailableBalance(req.session.userId, market);
   const { ticker, order_type, quantity, price } = req.body;
   const t = locales[req.session.lang || 'vi'];
 
   const renderErr = (error) => res.render('new-order', {
-    user, holdings, availableBalance, error, success: null,
+    user, holdings, availableBalance, market, error, success: null,
     prefill: { ticker: ticker || '', type: order_type || 'buy' },
   });
 
@@ -171,7 +205,8 @@ app.post('/orders', requireAuth, (req, res) => {
   const prcK = parseFloat(price);
   const prc  = Math.round(prcK * 1000);
   if (!qty || qty <= 0 || !Number.isInteger(qty)) return renderErr(t.err_invalid_qty);
-  if (qty % 100 !== 0) return renderErr(t.err_qty_lot);
+  // Stocks: must be multiple of 100. Derivatives: any integer >= 1
+  if (!isDerivative && qty % 100 !== 0) return renderErr(t.err_qty_lot);
   if (!prcK || prcK <= 0) return renderErr(t.err_invalid_price);
 
   const totalValue = qty * prc;
@@ -183,18 +218,19 @@ app.post('/orders', requireAuth, (req, res) => {
       return renderErr(t.err_insuf_balance(formatVND(totalCost), formatVND(availableBalance)));
     }
   } else {
-    const avail = db.getAvailableQuantity(req.session.userId, tickerClean);
+    const avail = db.getAvailableQuantity(req.session.userId, tickerClean, market);
     if (avail < qty) {
-      return renderErr(t.err_insuf_shares(tickerClean, avail));
+      return renderErr(isDerivative ? t.err_insuf_contracts(tickerClean, avail) : t.err_insuf_shares(tickerClean, avail));
     }
   }
 
-  db.createOrder({ user_id: req.session.userId, ticker: tickerClean, order_type, quantity: qty, price: prc, fee, total_value: totalValue });
+  db.createOrder({ user_id: req.session.userId, ticker: tickerClean, order_type, quantity: qty, price: prc, fee, total_value: totalValue, market });
 
   res.render('new-order', {
     user: db.getUserById(req.session.userId),
-    holdings: db.getHoldings(req.session.userId),
-    availableBalance: db.getAvailableBalance(req.session.userId),
+    holdings: db.getHoldings(req.session.userId, market),
+    availableBalance: db.getAvailableBalance(req.session.userId, market),
+    market,
     error: null,
     success: t.success_order(order_type, tickerClean),
     prefill: { ticker: '', type: 'buy' },
@@ -225,16 +261,19 @@ app.get('/player/:username', requireAuth, (req, res) => {
     return res.redirect('/leaderboard');
   }
 
-  const holdings = db.getHoldings(profile.id);
-  const orders = db.getUserOrders(profile.id);
+  const stockHoldings = db.getHoldings(profile.id, 'stock');
+  const derivHoldings = db.getHoldings(profile.id, 'derivative');
+  const orders = db.getUserOrders(profile.id, 0, 'stock');
   const navHistory = db.getNAVHistory(profile.id, 30);
-  res.render('profile', { profile, holdings, orders, navHistory });
+  res.render('profile', { profile, stockHoldings, derivHoldings, orders, navHistory });
 });
 
 app.post('/nav/record', requireAuth, (req, res) => {
   const note = req.body.note?.trim() || '';
-  db.recordNAV(req.session.userId, note);
-  res.redirect('/dashboard?success=' + encodeURIComponent(locales[req.session.lang || 'vi'].nav_recorded));
+  const market = req.body.market || 'stock';
+  db.recordNAV(req.session.userId, note, market);
+  const redirect = market === 'derivative' ? '/derivative' : '/dashboard';
+  res.redirect(redirect + '?success=' + encodeURIComponent(locales[req.session.lang || 'vi'].nav_recorded));
 });
 
 // ─── Admin ────────────────────────────────────────────────────────────────────
@@ -314,27 +353,60 @@ app.post('/admin/prices', requireAdmin, (req, res) => {
   res.redirect('/admin/portfolio?success=Đã cập nhật giá thủ công');
 });
 
-app.post('/admin/fetch-prices', requireAdmin, (req, res) => {
-  const { spawn } = require('child_process');
-  const script = path.join(__dirname, 'fetch_prices.py');
-  const proc = spawn('python3', [script], { cwd: __dirname });
+app.post('/admin/fetch-prices', requireAdmin, async (req, res) => {
+  try {
+    const result = await dnse.fetchOnce(12000);
+    const msg = `DNSE: ${result.updated.length} ma da cap nhat` +
+      (result.errors.length ? ` (${result.errors.length} khong co du lieu: ${result.errors.map(e => e.ticker).join(', ')})` : '');
+    res.redirect('/admin/portfolio?success=' + encodeURIComponent(msg));
+  } catch (err) {
+    res.redirect('/admin/portfolio?error=' + encodeURIComponent('Loi fetch DNSE: ' + (err.message || '').slice(0, 200)));
+  }
+});
 
-  let stdout = '';
-  let stderr = '';
-  proc.stdout.on('data', d => { stdout += d.toString(); });
-  proc.stderr.on('data', d => { stderr += d.toString(); });
+// ─── API: DNSE Status & Prices (for frontend auto-refresh) ──────────────────
 
-  proc.on('close', code => {
-    try {
-      const lastLine = stdout.trim().split('\n').filter(l => l.startsWith('{')).pop();
-      const result = JSON.parse(lastLine);
-      const msg = `VNStock: cập nhật ${result.updated.length} mã` +
-        (result.errors.length ? ` (${result.errors.length} lỗi: ${result.errors.map(e => e.ticker).join(', ')})` : '');
-      res.redirect('/admin/portfolio?success=' + encodeURIComponent(msg));
-    } catch {
-      res.redirect('/admin/portfolio?error=' + encodeURIComponent('Lỗi fetch: ' + (stderr || stdout).slice(0, 200)));
-    }
+app.get('/api/prices', requireAuth, (req, res) => {
+  const prices = db.getMarketPrices();
+  const status = dnse.getStatus();
+  res.json({ prices, dnse: status });
+});
+
+// Candle data for chart - returns cached or fetches historical from VNDirect
+app.get('/api/candles/:ticker', requireAuth, async (req, res) => {
+  const ticker = req.params.ticker.toUpperCase();
+  const resolution = req.query.resolution || '1';
+  const days = parseInt(req.query.days) || 3;
+  let candles = dnse.getCandles(ticker);
+  if (candles.length === 0) {
+    candles = await dnse.fetchHistoricalCandles(ticker, resolution, days);
+  }
+  res.json(candles);
+});
+
+// SSE endpoint for real-time quote streaming
+app.get('/api/sse/quotes', requireAuth, (req, res) => {
+  res.writeHead(200, {
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
   });
+  res.write('\n');
+  dnse.addSSEClient(res);
+  // Keep alive every 30s
+  const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch { clearInterval(ka); } }, 30000);
+  req.on('close', () => clearInterval(ka));
+});
+
+app.post('/admin/dnse/connect', requireAdmin, (req, res) => {
+  dnse.connect();
+  dnse.refreshSubscriptions();
+  res.redirect('/admin/portfolio?success=DNSE: ket noi thu cong');
+});
+
+app.post('/admin/dnse/disconnect', requireAdmin, (req, res) => {
+  dnse.disconnect();
+  res.redirect('/admin/portfolio?success=DNSE: da ngat ket noi');
 });
 
 // ─── Start ────────────────────────────────────────────────────────────────────

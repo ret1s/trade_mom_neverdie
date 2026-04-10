@@ -2,21 +2,6 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:          #000000;
-  --surface:     #0d0d0d;
-  --surface2:    #141414;
-  --border:      #222222;
-  --border2:     #333333;
-  --text:        #cccccc;
-  --text-dim:    #555555;
-  --text-bright: #ffffff;
-  --green:       #00cc66;
-  --red:         #ff3333;
-  --yellow:      #ffaa00;
-  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
-}
-
-html.light {
   --bg:          #f5f5f0;
   --surface:     #ffffff;
   --surface2:    #f0f0eb;
@@ -28,6 +13,7 @@ html.light {
   --green:       #007a3d;
   --red:         #cc1111;
   --yellow:      #996600;
+  --font: -apple-system, BlinkMacSystemFont, "Helvetica Neue", Arial, sans-serif;
 }
 
 html { font-size: 14px; }
@@ -220,7 +206,7 @@ th {
 
 td {
   padding: 9px 10px;
-  border-bottom: 1px solid #0d0d0d;
+  border-bottom: 1px solid var(--border);
   font-size: 13px;
   white-space: nowrap;
 }
@@ -565,10 +551,6 @@ input::placeholder { color: var(--text-dim); }
   margin-bottom: 16px;
   display: flex;
   gap: 24px;
-}
-html.light .holding-info {
-  background: rgba(0,122,61,0.06);
-  border-color: rgba(0,122,61,0.25);
 }
 .holding-info-row { display: flex; flex-direction: column; gap: 2px; font-size: 12px; }
 .holding-info-row .dim { font-size: 10px; text-transform: uppercase; letter-spacing: 1px; }

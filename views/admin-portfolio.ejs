@@ -4,11 +4,13 @@
 <div class="container">
   <div class="page-header">
     <h1 class="page-title"><%= t.page_portfolio %></h1>
-    <form method="POST" action="/admin/fetch-prices" id="fetchForm">
-      <button type="submit" class="btn btn-primary" id="fetchBtn">
-        <%= t.btn_fetch %>
-      </button>
-    </form>
+    <div style="display:flex;gap:8px;align-items:center">
+      <form method="POST" action="/admin/fetch-prices" id="fetchForm">
+        <button type="submit" class="btn btn-primary" id="fetchBtn">
+          <%= t.btn_fetch %>
+        </button>
+      </form>
+    </div>
   </div>
 
   <% if (flash.error) { %><div class="alert alert-error"><%= flash.error %></div><% } %>
@@ -99,43 +101,48 @@
         username: row.username,
         display_name: row.display_name,
         balance: row.balance,
-        holdings: []
+        derivative_balance: row.derivative_balance,
+        stockHoldings: [],
+        derivHoldings: [],
       };
-      byUser[key].holdings.push(row);
+      if (row.market === 'derivative') byUser[key].derivHoldings.push(row);
+      else byUser[key].stockHoldings.push(row);
     });
     const STARTING = 1000000000;
   %>
 
   <% Object.values(byUser).forEach(u => { %>
   <%
+    const allHoldings = [...u.stockHoldings, ...u.derivHoldings];
     let costTotal = 0, marketTotal = 0, allPriced = true;
-    u.holdings.forEach(h => {
+    let dCostTotal = 0, dMarketTotal = 0, dAllPriced = true;
+    u.stockHoldings.forEach(h => {
       costTotal   += h.cost_basis;
       if (h.market_price) marketTotal += h.market_price * h.total_quantity;
       else { allPriced = false; marketTotal += h.cost_basis; }
     });
-    const portfolioVal = allPriced ? marketTotal : costTotal;
-    const totalAssets  = u.balance + portfolioVal;
-    const unrealPnl    = allPriced ? marketTotal - costTotal : null;
-    const totalPnl     = totalAssets - STARTING;
+    u.derivHoldings.forEach(h => {
+      dCostTotal += h.cost_basis;
+      if (h.market_price) dMarketTotal += h.market_price * h.total_quantity;
+      else { dAllPriced = false; dMarketTotal += h.cost_basis; }
+    });
+    const stockPortfolio = allPriced ? marketTotal : costTotal;
+    const derivPortfolio = dAllPriced ? dMarketTotal : dCostTotal;
+    const totalAssets  = u.balance + stockPortfolio + u.derivative_balance + derivPortfolio;
+    const totalPnl     = totalAssets - STARTING * 2;
   %>
   <div class="card user-portfolio-card">
     <div class="user-portfolio-header">
       <div>
         <div class="bold" style="font-size:15px"><%= u.display_name || u.username %></div>
-        <div class="dim small"><%= t.cash_label %>: ₫<%= formatVND(u.balance) %></div>
+        <div class="dim small"><%= t.cash_label %>: ₫<%= formatVND(u.balance) %> | PS: ₫<%= formatVND(u.derivative_balance) %></div>
       </div>
       <div style="text-align:right">
         <div class="bold" style="font-size:15px">₫<%= formatVND(totalAssets) %> <%= t.total_assets_label %></div>
         <div class="small <%= totalPnl >= 0 ? 'text-buy' : 'text-sell' %>">
           P&L: <%= totalPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(totalPnl)) %>
-          &nbsp;(<%= (totalPnl / STARTING * 100).toFixed(2) %>%)
+          &nbsp;(<%= (totalPnl / (STARTING * 2) * 100).toFixed(2) %>%)
         </div>
-        <% if (unrealPnl !== null) { %>
-        <div class="tiny-dim <%= unrealPnl >= 0 ? 'text-buy' : 'text-sell' %>">
-          <%= unrealPnl >= 0 ? '+' : '' %>₫<%= formatVND(Math.abs(unrealPnl)) %> <%= t.unrealized_label %>
-        </div>
-        <% } %>
       </div>
     </div>
 
@@ -155,14 +162,16 @@
         </tr>
       </thead>
       <tbody>
-        <% u.holdings.forEach(h => { %>
+        <% allHoldings.forEach(h => { %>
         <%
           const mv   = h.market_price ? h.market_price * h.total_quantity : null;
           const pnl  = mv !== null ? mv - h.cost_basis : null;
           const pct  = pnl !== null ? (pnl / h.cost_basis * 100).toFixed(2) : null;
         %>
         <tr>
-          <td><span class="ticker"><%= h.ticker %></span></td>
+          <td><span class="ticker"><%= h.ticker %></span>
+            <% if (h.market === 'derivative') { %><span class="dim small"> PS</span><% } %>
+          </td>
           <td class="num"><%= h.total_quantity.toLocaleString('vi-VN') %></td>
           <td class="num">
             <%= h.available_quantity.toLocaleString('vi-VN') %>

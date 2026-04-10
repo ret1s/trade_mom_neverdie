@@ -11,7 +11,7 @@ const locales = {
 
     // Auth
     auth_subtitle_login:    'NEVERDIE — Thị trường chứng khoán giả lập',
-    auth_subtitle_register: 'Tạo tài khoản — Bắt đầu với ₫1,000,000,000',
+    auth_subtitle_register: 'Tạo tài khoản — 1 tỷ cổ phiếu + 1 tỷ phái sinh',
     auth_username:           'TÊN ĐĂNG NHẬP',
     auth_password:           'MẬT KHẨU',
     auth_confirm_password:   'XÁC NHẬN MẬT KHẨU',
@@ -121,10 +121,10 @@ const locales = {
 
     // Admin portfolio
     page_portfolio:          'PORTFOLIO',
-    btn_fetch:               'FETCH TU VNSTOCK',
-    btn_fetching:            'Dang fetch...',
+    btn_fetch:               'FETCH TỪ DNSE',
+    btn_fetching:            'Đang fetch...',
     market_prices_title:     'GIÁ THỊ TRƯỜNG',
-    market_prices_sub:       'VNStock · sửa tay bên dưới',
+    market_prices_sub:       'DNSE LightSpeed · sửa tay bên dưới',
     no_holdings_admin:       'Không có cổ phiếu nào đang nắm giữ',
     col_avg_cost:            'GIÁ VỐN TB',
     col_market_k:            'GIÁ TT (nghìn)',
@@ -178,6 +178,24 @@ const locales = {
     col_nav:                'NAV',
     col_recorded_at:        'THỜI GIAN',
     col_note_nav:           'GHI CHÚ',
+
+    // Derivatives
+    nav_derivative:         'PHÁI SINH',
+    page_derivative:        'PHÁI SINH',
+    deriv_holdings_title:   'HỢP ĐỒNG ĐANG NẮM GIỮ',
+    deriv_no_holdings:      'Chưa có hợp đồng nào.',
+    deriv_no_holdings_link: 'Đặt lệnh mua đầu tiên',
+    col_contracts:          'HĐ',
+    placeholder_ticker_d:   'VD: VN30F2504, VN30F2505',
+    label_qty_contracts:    'SỐ LƯỢNG (hợp đồng)',
+    err_insuf_contracts:    (ticker, avail) => `Không đủ hợp đồng khả dụng. ${ticker} khả dụng: ${avail} HĐ`,
+    err_qty_lot_deriv:      'Số lượng phải là số nguyên dương',
+    stat_deriv_balance:     'SỐ DƯ PHÁI SINH',
+    deriv_settlement:       'T+0',
+    dnse_connected:         'DNSE: đã kết nối',
+    dnse_disconnected:      'DNSE: chưa kết nối',
+    dnse_trading_hours:     'Giờ giao dịch',
+    dnse_off_hours:         'Ngoài giờ',
   },
 
   en: {
@@ -192,7 +210,7 @@ const locales = {
 
     // Auth
     auth_subtitle_login:    'NEVERDIE — Stock market simulation',
-    auth_subtitle_register: 'Create account — Start with ₫1,000,000,000',
+    auth_subtitle_register: 'Create account — 1B stocks + 1B derivatives',
     auth_username:           'USERNAME',
     auth_password:           'PASSWORD',
     auth_confirm_password:   'CONFIRM PASSWORD',
@@ -302,10 +320,10 @@ const locales = {
 
     // Admin portfolio
     page_portfolio:          'PORTFOLIO',
-    btn_fetch:               'FETCH FROM VNSTOCK',
+    btn_fetch:               'FETCH FROM DNSE',
     btn_fetching:            'Fetching...',
     market_prices_title:     'MARKET PRICES',
-    market_prices_sub:       'VNStock · edit manually below',
+    market_prices_sub:       'DNSE LightSpeed · edit manually below',
     no_holdings_admin:       'No holdings',
     col_avg_cost:            'AVG COST',
     col_market_k:            'MARKET (thousands)',
@@ -359,6 +377,24 @@ const locales = {
     col_nav:                'NAV',
     col_recorded_at:        'TIME',
     col_note_nav:           'NOTE',
+
+    // Derivatives
+    nav_derivative:         'DERIVATIVES',
+    page_derivative:        'DERIVATIVES',
+    deriv_holdings_title:   'CONTRACTS HELD',
+    deriv_no_holdings:      'No contracts yet.',
+    deriv_no_holdings_link: 'Place your first buy order',
+    col_contracts:          'CONTRACTS',
+    placeholder_ticker_d:   'e.g. VN30F2504, VN30F2505',
+    label_qty_contracts:    'QUANTITY (contracts)',
+    err_insuf_contracts:    (ticker, avail) => `Insufficient contracts. ${ticker} available: ${avail}`,
+    err_qty_lot_deriv:      'Quantity must be a positive integer',
+    stat_deriv_balance:     'DERIVATIVE BALANCE',
+    deriv_settlement:       'T+0',
+    dnse_connected:         'DNSE: connected',
+    dnse_disconnected:      'DNSE: disconnected',
+    dnse_trading_hours:     'Trading hours',
+    dnse_off_hours:         'Off hours',
   },
 };
 
